@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Sun, 
   Moon, 
@@ -8,15 +9,18 @@ import {
   Download, 
   Trash2,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useAura } from '@/contexts/AuraContext';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export const SettingsScreen: React.FC = () => {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const { 
     theme, 
     toggleTheme, 
@@ -25,6 +29,11 @@ export const SettingsScreen: React.FC = () => {
     clearAllMemories 
   } = useAura();
   const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  };
 
   const handleExportChat = () => {
     toast({
@@ -112,6 +121,19 @@ export const SettingsScreen: React.FC = () => {
           label: 'Delete Memories',
           description: 'Remove all saved memories',
           onClick: handleClearMemories,
+          action: <ChevronRight className="w-5 h-5 text-destructive" />,
+          destructive: true,
+        },
+      ],
+    },
+    {
+      title: 'ACCOUNT',
+      items: [
+        {
+          icon: LogOut,
+          label: 'Sign Out',
+          description: 'Log out of your account',
+          onClick: handleSignOut,
           action: <ChevronRight className="w-5 h-5 text-destructive" />,
           destructive: true,
         },

@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export interface UserProfile {
   name: string;
@@ -63,6 +66,7 @@ interface AuraContextType {
   updateChatMessage: (id: string, content: string) => void;
   clearChatHistory: () => void;
   clearAllMemories: () => void;
+  isLoading: boolean;
 }
 
 const defaultUserProfile: UserProfile = {
@@ -80,49 +84,92 @@ const defaultUserProfile: UserProfile = {
 const AuraContext = createContext<AuraContextType | undefined>(undefined);
 
 export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('aura-theme');
     return (saved as 'light' | 'dark') || 'dark';
   });
 
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('aura-user-profile');
-    return saved ? JSON.parse(saved) : defaultUserProfile;
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([
+    { id: '1', text: 'Drink water 💧', time: '09:00', active: true },
+    { id: '2', text: 'Take a short break', time: '11:00', active: true },
+    { id: '3', text: 'Lunch time 🍽️', time: '13:00', active: true },
+  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
-  const [memories, setMemories] = useState<Memory[]>(() => {
-    const saved = localStorage.getItem('aura-memories');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Load profile from database
+  useEffect(() => {
+    if (!user) {
+      setUserProfile(defaultUserProfile);
+      setChatMessages([]);
+      setIsLoading(false);
+      return;
+    }
 
-  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>(() => {
-    const saved = localStorage.getItem('aura-routine');
-    return saved ? JSON.parse(saved) : [];
-  });
+    const loadUserData = async () => {
+      setIsLoading(true);
+      try {
+        // Load profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
 
-  const [reminders, setReminders] = useState<Reminder[]>(() => {
-    const saved = localStorage.getItem('aura-reminders');
-    return saved ? JSON.parse(saved) : [
-      { id: '1', text: 'Drink water 💧', time: '09:00', active: true },
-      { id: '2', text: 'Take a short break', time: '11:00', active: true },
-      { id: '3', text: 'Lunch time 🍽️', time: '13:00', active: true },
-    ];
-  });
+        if (profile) {
+          setUserProfile({
+            name: profile.name || '',
+            age: profile.age?.toString() || '',
+            gender: profile.gender || '',
+            profession: profile.profession || '',
+            languages: profile.languages || [],
+            wakeTime: profile.wake_time || '07:00',
+            sleepTime: profile.sleep_time || '23:00',
+            tonePreference: profile.tone_preference || 'mixed',
+            onboardingComplete: true,
+          });
+        } else {
+          setUserProfile(defaultUserProfile);
+        }
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('aura-chat');
-    return saved ? JSON.parse(saved) : [];
-  });
+        // Load chat messages
+        const { data: messages } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+
+        if (messages) {
+          setChatMessages(
+            messages.map((msg) => ({
+              id: msg.id,
+              content: msg.content,
+              sender: msg.sender as 'user' | 'aura',
+              timestamp: new Date(msg.created_at),
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, [user]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('aura-theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    localStorage.setItem('aura-user-profile', JSON.stringify(userProfile));
-  }, [userProfile]);
-
+  // Save memories/routines/reminders to local storage (can be moved to DB later)
   useEffect(() => {
     localStorage.setItem('aura-memories', JSON.stringify(memories));
   }, [memories]);
@@ -135,87 +182,161 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('aura-reminders', JSON.stringify(reminders));
   }, [reminders]);
 
+  // Load local storage data on mount
   useEffect(() => {
-    localStorage.setItem('aura-chat', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+    const savedMemories = localStorage.getItem('aura-memories');
+    const savedRoutine = localStorage.getItem('aura-routine');
+    const savedReminders = localStorage.getItem('aura-reminders');
 
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    if (savedMemories) setMemories(JSON.parse(savedMemories));
+    if (savedRoutine) setRoutineBlocks(JSON.parse(savedRoutine));
+    if (savedReminders) setReminders(JSON.parse(savedReminders));
+  }, []);
 
-  const updateUserProfile = (profile: Partial<UserProfile>) => {
-    setUserProfile(prev => ({ ...prev, ...profile }));
-  };
+  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+
+  const updateUserProfile = useCallback(
+    async (profile: Partial<UserProfile>) => {
+      const newProfile = { ...userProfile, ...profile };
+      setUserProfile(newProfile);
+
+      if (user && profile.onboardingComplete) {
+        try {
+          const { error } = await supabase.from('profiles').upsert({
+            id: user.id,
+            name: newProfile.name,
+            age: newProfile.age ? parseInt(newProfile.age) : null,
+            gender: newProfile.gender || null,
+            profession: newProfile.profession || null,
+            languages: newProfile.languages,
+            wake_time: newProfile.wakeTime,
+            sleep_time: newProfile.sleepTime,
+            tone_preference: newProfile.tonePreference,
+          });
+
+          if (error) throw error;
+        } catch (error) {
+          console.error('Error saving profile:', error);
+          toast.error('Could not save profile');
+        }
+      }
+    },
+    [user, userProfile]
+  );
 
   const addMemory = (memory: Omit<Memory, 'id' | 'createdAt'>) => {
-    setMemories(prev => [...prev, { ...memory, id: Date.now().toString(), createdAt: new Date() }]);
+    setMemories((prev) => [...prev, { ...memory, id: Date.now().toString(), createdAt: new Date() }]);
   };
 
   const deleteMemory = (id: string) => {
-    setMemories(prev => prev.filter(m => m.id !== id));
+    setMemories((prev) => prev.filter((m) => m.id !== id));
   };
 
   const addRoutineBlock = (block: Omit<RoutineBlock, 'id'>) => {
-    setRoutineBlocks(prev => [...prev, { ...block, id: Date.now().toString() }]);
+    setRoutineBlocks((prev) => [...prev, { ...block, id: Date.now().toString() }]);
   };
 
   const toggleRoutineComplete = (id: string) => {
-    setRoutineBlocks(prev => prev.map(b => b.id === id ? { ...b, completed: !b.completed } : b));
+    setRoutineBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, completed: !b.completed } : b)));
   };
 
   const deleteRoutineBlock = (id: string) => {
-    setRoutineBlocks(prev => prev.filter(b => b.id !== id));
+    setRoutineBlocks((prev) => prev.filter((b) => b.id !== id));
   };
 
   const addReminder = (reminder: Omit<Reminder, 'id'>) => {
-    setReminders(prev => [...prev, { ...reminder, id: Date.now().toString() }]);
+    setReminders((prev) => [...prev, { ...reminder, id: Date.now().toString() }]);
   };
 
   const toggleReminder = (id: string) => {
-    setReminders(prev => prev.map(r => r.id === id ? { ...r, active: !r.active } : r));
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r)));
   };
 
   const deleteReminder = (id: string) => {
-    setReminders(prev => prev.filter(r => r.id !== id));
+    setReminders((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const addChatMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>): string => {
-    const id = Date.now().toString();
-    setChatMessages(prev => [...prev, { ...message, id, timestamp: new Date() }]);
-    return id;
-  };
+  const addChatMessage = useCallback(
+    (message: Omit<ChatMessage, 'id' | 'timestamp'>): string => {
+      const id = crypto.randomUUID();
+      const timestamp = new Date();
+      setChatMessages((prev) => [...prev, { ...message, id, timestamp }]);
 
-  const updateChatMessage = (id: string, content: string) => {
-    setChatMessages(prev => prev.map(msg => 
-      msg.id === id ? { ...msg, content } : msg
-    ));
-  };
+      // Save to database
+      if (user) {
+        supabase
+          .from('chat_messages')
+          .insert({
+            id,
+            user_id: user.id,
+            content: message.content,
+            sender: message.sender,
+          })
+          .then(({ error }) => {
+            if (error) console.error('Error saving message:', error);
+          });
+      }
 
-  const clearChatHistory = () => setChatMessages([]);
+      return id;
+    },
+    [user]
+  );
+
+  const updateChatMessage = useCallback(
+    (id: string, content: string) => {
+      setChatMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, content } : msg)));
+
+      // Update in database
+      if (user) {
+        supabase
+          .from('chat_messages')
+          .update({ content })
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Error updating message:', error);
+          });
+      }
+    },
+    [user]
+  );
+
+  const clearChatHistory = useCallback(async () => {
+    setChatMessages([]);
+    if (user) {
+      const { error } = await supabase.from('chat_messages').delete().eq('user_id', user.id);
+      if (error) console.error('Error clearing messages:', error);
+    }
+  }, [user]);
 
   const clearAllMemories = () => setMemories([]);
 
   return (
-    <AuraContext.Provider value={{
-      theme,
-      toggleTheme,
-      userProfile,
-      updateUserProfile,
-      memories,
-      addMemory,
-      deleteMemory,
-      routineBlocks,
-      addRoutineBlock,
-      toggleRoutineComplete,
-      deleteRoutineBlock,
-      reminders,
-      addReminder,
-      toggleReminder,
-      deleteReminder,
-      chatMessages,
-      addChatMessage,
-      updateChatMessage,
-      clearChatHistory,
-      clearAllMemories,
-    }}>
+    <AuraContext.Provider
+      value={{
+        theme,
+        toggleTheme,
+        userProfile,
+        updateUserProfile,
+        memories,
+        addMemory,
+        deleteMemory,
+        routineBlocks,
+        addRoutineBlock,
+        toggleRoutineComplete,
+        deleteRoutineBlock,
+        reminders,
+        addReminder,
+        toggleReminder,
+        deleteReminder,
+        chatMessages,
+        addChatMessage,
+        updateChatMessage,
+        clearChatHistory,
+        clearAllMemories,
+        isLoading,
+      }}
+    >
       {children}
     </AuraContext.Provider>
   );
