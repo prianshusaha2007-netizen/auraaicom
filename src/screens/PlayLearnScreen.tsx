@@ -42,6 +42,7 @@ export const PlayLearnScreen: React.FC = () => {
   const { toast } = useToast();
   const [currentFact, setCurrentFact] = useState(funFacts[0]);
   const [currentTip, setCurrentTip] = useState(productivityTips[0]);
+  const [activeGame, setActiveGame] = useState<GameType>(null);
 
   const getRandomFact = () => {
     const newFact = funFacts[Math.floor(Math.random() * funFacts.length)];
@@ -58,7 +59,6 @@ export const PlayLearnScreen: React.FC = () => {
       "Ooh, bored? Let's fix that! 🎮 How about a quick game or a random fun fact?",
       "No worries, I got you! Want me to tell you something cool or play a game?",
       "Boredom = opportunity! Let's do something fun together. Pick a mini-game!",
-      "Hey, same tbh. Let's watch something together or I can share a cool story!",
     ];
     toast({
       title: "AURA says...",
@@ -66,19 +66,24 @@ export const PlayLearnScreen: React.FC = () => {
     });
   };
 
-  const handleGameClick = (game: string) => {
-    toast({
-      title: `${game} Mode Activated! 🎮`,
-      description: "This feature is coming soon! AURA will play with you directly in chat.",
-    });
+  const handleGameClick = (game: GameType) => {
+    setActiveGame(game);
   };
 
   const handleTestClick = (test: string) => {
     toast({
       title: `${test} 📊`,
-      description: "Personality insights coming soon! You'll be able to track your moods over time.",
+      description: "Personality insights coming soon!",
     });
   };
+
+  if (activeGame) {
+    return (
+      <div className="flex flex-col h-full overflow-y-auto pb-24 p-4">
+        <MiniGame gameType={activeGame} onClose={() => setActiveGame(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto pb-24">
