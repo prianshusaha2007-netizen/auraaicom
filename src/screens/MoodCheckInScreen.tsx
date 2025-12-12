@@ -11,13 +11,15 @@ import {
   Wind,
   CloudRain,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { MoodHistoryChart } from '@/components/MoodHistoryChart';
+import { MoodAnalyticsDashboard } from '@/components/MoodAnalyticsDashboard';
 
 interface MoodEntry {
   id: string;
@@ -56,6 +58,7 @@ export const MoodCheckInScreen: React.FC = () => {
   const [selectedEnergy, setSelectedEnergy] = useState<string | null>(null);
   const [selectedStress, setSelectedStress] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [analysis, setAnalysis] = useState('');
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
@@ -172,13 +175,27 @@ export const MoodCheckInScreen: React.FC = () => {
     localStorage.setItem('aura-mood-history', JSON.stringify(filtered));
   };
 
+  if (showAnalytics) {
+    return <MoodAnalyticsDashboard onBack={() => setShowAnalytics(false)} />;
+  }
+
   return (
     <div className="h-full overflow-y-auto pb-24">
       {/* Header */}
       <div className="p-4 bg-gradient-to-b from-primary/10 to-transparent">
-        <div className="flex items-center gap-2 mb-1">
-          <Heart className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold">Daily Check-In</h1>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <Heart className="w-6 h-6 text-primary" />
+            <h1 className="text-xl font-bold">Daily Check-In</h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowAnalytics(true)}
+            className="rounded-full"
+          >
+            <BarChart3 className="w-5 h-5 text-primary" />
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">How are you feeling today?</p>
       </div>
