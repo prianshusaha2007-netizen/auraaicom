@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Menu } from 'lucide-react';
 import { AuraProvider, useAura } from '@/contexts/AuraContext';
 import { useAuth } from '@/hooks/useAuth';
 import { NavigationBar } from '@/components/NavigationBar';
-import { Sidebar } from '@/components/Sidebar';
-import { Button } from '@/components/ui/button';
+import { AppSidebar, TabId } from '@/components/AppSidebar';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { MemoriesScreen } from '@/screens/MemoriesScreen';
 import { RoutineScreen } from '@/screens/RoutineScreen';
@@ -22,7 +20,7 @@ import { DailyMoodPopup } from '@/components/DailyMoodPopup';
 
 const AppContent: React.FC = () => {
   const { userProfile, isLoading, clearChatHistory } = useAura();
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState<TabId>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -45,17 +43,17 @@ const AppContent: React.FC = () => {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case 'chat': return <ChatScreen />;
-      case 'play': return <PlayLearnScreen />;
+      case 'chat': return <ChatScreen onMenuClick={() => setSidebarOpen(true)} />;
+      case 'games': return <PlayLearnScreen />;
       case 'memories': return <MemoriesScreen />;
       case 'routine': return <RoutineScreen />;
       case 'settings': return <SettingsScreen />;
       case 'mood': return <MoodCheckInScreen />;
-      case 'personality': return <PersonalityProfileScreen />;
-      case 'smart-search': return <SmartSearchScreen />;
-      case 'chat-history': return <ChatHistoryScreen />;
+      case 'profile': return <PersonalityProfileScreen />;
+      case 'search': return <SmartSearchScreen />;
+      case 'history': return <ChatHistoryScreen />;
       case 'permissions': return <PermissionsScreen />;
-      default: return <ChatScreen />;
+      default: return <ChatScreen onMenuClick={() => setSidebarOpen(true)} />;
     }
   };
 
@@ -64,16 +62,7 @@ const AppContent: React.FC = () => {
       {/* Daily Mood Check-in Popup */}
       <DailyMoodPopup userName={userProfile.name} />
 
-      {/* Header with Menu */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="rounded-full">
-          <Menu className="w-5 h-5" />
-        </Button>
-        <span className="font-bold aura-gradient-text">AURA</span>
-        <div className="w-10" />
-      </header>
-
-      <Sidebar 
+      <AppSidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
         activeTab={activeTab}
@@ -82,7 +71,7 @@ const AppContent: React.FC = () => {
       />
 
       <main className="flex-1 overflow-hidden">{renderScreen()}</main>
-      <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <NavigationBar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabId)} />
     </div>
   );
 };

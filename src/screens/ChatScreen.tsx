@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles } from 'lucide-react';
+import { Send, Sparkles, Menu, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuraOrb } from '@/components/AuraOrb';
 import { ChatBubble } from '@/components/ChatBubble';
-import { VoiceModal } from '@/components/VoiceModal';
 import { AutomationModal } from '@/components/AutomationModal';
 import { ActionsBar } from '@/components/ActionsBar';
 import { USPTiles } from '@/components/USPTiles';
@@ -13,17 +12,22 @@ import { VoiceButton } from '@/components/VoiceButton';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-export const ChatScreen: React.FC = () => {
+interface ChatScreenProps {
+  onMenuClick?: () => void;
+}
+
+export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick }) => {
   const { chatMessages, addChatMessage, userProfile } = useAura();
   const { sendMessage, isThinking } = useAuraChat();
   const [inputValue, setInputValue] = useState('');
-  const [voiceModal, setVoiceModal] = useState<'speak' | 'listen' | null>(null);
   const [showAutomation, setShowAutomation] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-flash');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,18 +72,63 @@ export const ChatScreen: React.FC = () => {
     }
   };
 
-  const handleActionSelect = (actionId: string, message: string) => {
-    toast({
-      title: "AURA says...",
-      description: message,
-    });
+  const handleSpeakMessage = async (text: string) => {
+    if (isSpeaking) {
+      audioRef.current?.pause();
+      setIsSpeaking(false);
+      return;
+    }
+
+    try {
+      setIsSpeaking(true);
+      const { data, error } = await supabase.functions.invoke('text-to-voice', {
+        body: { text, voice: 'nova' }
+      });
+
+      if (error) throw error;
+
+      if (data?.requiresSetup) {
+        toast.info('Voice playback needs setup', {
+          description: 'Add OpenAI API key for voice features.',
+        });
+        setIsSpeaking(false);
+        return;
+      }
+
+      if (data?.audioContent) {
+        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+        audioRef.current = audio;
+        audio.onended = () => setIsSpeaking(false);
+        await audio.play();
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      toast.error('Could not play voice');
+      setIsSpeaking(false);
+    }
   };
+
+  const handleActionSelect = (actionId: string, message: string) => {
+    toast.info(`AURA says: ${message}`);
+  };
+
+  const lastAuraMessage = chatMessages.filter(m => m.sender === 'aura').slice(-1)[0];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Orb and Model Selector */}
+      {/* Header with Orb and Controls */}
       <div className="flex flex-col items-center pt-4 pb-2 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-primary/5 to-transparent" />
+        
+        {/* Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 left-4 z-10 rounded-full"
+          onClick={onMenuClick}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
         
         {/* Model Selector */}
         <div className="absolute top-2 right-4 z-10">
@@ -162,6 +211,21 @@ export const ChatScreen: React.FC = () => {
               <Send className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Speak Last Message */}
+          {lastAuraMessage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'rounded-full shrink-0',
+                isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'
+              )}
+              onClick={() => handleSpeakMessage(lastAuraMessage.content)}
+            >
+              <Volume2 className="w-5 h-5" />
+            </Button>
+          )}
           
           <Button
             variant="ghost"
@@ -173,13 +237,6 @@ export const ChatScreen: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      {/* Modals */}
-      <VoiceModal
-        isOpen={voiceModal !== null}
-        onClose={() => setVoiceModal(null)}
-        mode={voiceModal || 'speak'}
-      />
       
       <AutomationModal
         isOpen={showAutomation}

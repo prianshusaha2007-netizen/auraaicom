@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Mic, MicOff, Volume2, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceButtonProps {
   onTranscription: (text: string) => void;
@@ -48,17 +49,30 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         stream.getTracks().forEach(track => track.stop());
         
-        // Convert to base64 and send for transcription
         setIsTranscribing(true);
         try {
           const reader = new FileReader();
           reader.onloadend = async () => {
             const base64Audio = (reader.result as string).split(',')[1];
             
-            // For now, show a message that voice mode needs setup
-            toast.info('Voice input recorded! Voice transcription requires additional API setup.', {
-              description: 'Use text input for now, or add OpenAI/ElevenLabs API keys for voice features.',
+            const { data, error } = await supabase.functions.invoke('voice-to-text', {
+              body: { audio: base64Audio }
             });
+            
+            if (error) {
+              throw error;
+            }
+            
+            if (data?.requiresSetup) {
+              toast.info('Voice input needs setup', {
+                description: 'Add OpenAI API key in settings for voice features.',
+              });
+            } else if (data?.text) {
+              onTranscription(data.text);
+              toast.success('Voice captured!');
+            } else if (data?.error) {
+              throw new Error(data.error);
+            }
             
             setIsTranscribing(false);
           };
@@ -72,7 +86,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
 
       mediaRecorder.start();
       setIsRecording(true);
-      toast.info('Recording... Tap again to stop');
+      toast.info('🎤 Recording... Tap again to stop');
     } catch (error) {
       console.error('Microphone error:', error);
       toast.error('Could not access microphone. Please check permissions.');
