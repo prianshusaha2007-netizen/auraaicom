@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { MoodHistoryChart } from '@/components/MoodHistoryChart';
 
 interface MoodEntry {
   id: string;
@@ -326,13 +327,16 @@ export const MoodCheckInScreen: React.FC = () => {
               Update Today's Check-In
             </Button>
 
-            {/* Mood History */}
+            {/* Weekly Mood Chart */}
+            <MoodHistoryChart />
+
+            {/* Mood History List */}
             {moodHistory.length > 1 && (
               <Card className="border-border/50">
                 <CardContent className="pt-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-primary" />
-                    Recent Mood History
+                    Recent Check-ins
                   </h3>
                   <div className="space-y-3">
                     {moodHistory.slice(1, 8).map((entry) => {
