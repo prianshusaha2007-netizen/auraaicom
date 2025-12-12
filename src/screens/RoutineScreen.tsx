@@ -19,10 +19,12 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAura } from '@/contexts/AuraContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { WaterTracker } from '@/components/WaterTracker';
+import { SmartReminderManager } from '@/components/SmartReminderManager';
 
 const blockTypes = [
   { id: 'study', label: 'Study', icon: BookOpen, color: 'text-blue-500 bg-blue-500/10' },
@@ -173,11 +175,23 @@ export const RoutineScreen: React.FC = () => {
     <div className="flex flex-col h-full p-4 pb-24 overflow-y-auto">
       {/* Header */}
       <div className="mb-4">
-        <h1 className="text-2xl font-bold aura-gradient-text">Routine</h1>
+        <h1 className="text-2xl font-bold aura-gradient-text">Routine & Reminders</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Your daily schedule & hydration
+          Your daily schedule, reminders & hydration
         </p>
       </div>
+
+      <Tabs defaultValue="schedule" className="flex-1">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="reminders">Smart Reminders</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="reminders" className="mt-0">
+          <SmartReminderManager />
+        </TabsContent>
+
+        <TabsContent value="schedule" className="mt-0 space-y-4">
 
       {/* Water Tracker */}
       <div className="mb-4">
@@ -389,6 +403,8 @@ export const RoutineScreen: React.FC = () => {
           </div>
         )}
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
