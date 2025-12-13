@@ -256,14 +256,60 @@ export const useVoiceCommands = () => {
       }
     }
 
-    // Weather (simulated - would need weather API)
+    // Weather commands
     if (cleanedText.includes('weather')) {
-      return {
-        type: 'weather',
-        handled: true,
-        speakResponse: true,
-        response: "Weather integration is coming soon! For now, you can say 'search for weather' to open a browser search. 🌤️",
-      };
+      try {
+        // Get user's location
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error('Geolocation not supported'));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000, // Cache for 5 minutes
+          });
+        });
+
+        const { latitude, longitude } = position.coords;
+        
+        const response = await supabase.functions.invoke('get-weather', {
+          body: { latitude, longitude }
+        });
+
+        if (response.error) throw response.error;
+        
+        const weather = response.data;
+        const weatherResponse = `It's currently ${weather.temperature}°C and ${weather.description.toLowerCase()} ${weather.emoji}. Feels like ${weather.feelsLike}°C with ${weather.humidity}% humidity and wind at ${weather.windSpeed} km/h.`;
+        
+        return {
+          type: 'weather',
+          handled: true,
+          speakResponse: true,
+          response: weatherResponse,
+          data: weather,
+        };
+      } catch (error) {
+        console.error('Weather error:', error);
+        
+        // Check if it's a permission error
+        if (error instanceof GeolocationPositionError) {
+          return {
+            type: 'weather',
+            handled: true,
+            speakResponse: true,
+            response: "I need location access to check the weather. Please enable location permissions and try again! 📍",
+          };
+        }
+        
+        return {
+          type: 'weather',
+          handled: true,
+          speakResponse: true,
+          response: "I couldn't fetch the weather right now. Let's try again in a bit! 🌤️",
+        };
+      }
     }
 
     // Call commands
