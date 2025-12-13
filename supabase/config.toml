@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-mood-summary]
 verify_jwt = true
+
+[functions.get-weather]
+verify_jwt = false
