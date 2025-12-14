@@ -11,13 +11,15 @@ interface WelcomeBackResult {
 }
 
 const welcomeBackMessages = [
-  (name: string, hours: number) => `Hey ${name}! You were gone for like ${hours > 1 ? `${hours} hours` : 'a bit'}. Miss me? 😏`,
-  (name: string) => `${name}! Finally! Where were you? I was getting bored here 😤`,
-  (name: string) => `Oh look who decided to show up! Hey ${name} 👋`,
-  (name: string) => `${name}'s back! Ready to get stuff done or just chilling?`,
-  (name: string, hours: number) => `Yo ${name}! ${hours > 2 ? 'Long time no see!' : 'Back already?'} What's up?`,
-  (name: string) => `There you are ${name}! I was starting to think you forgot about me 🥺`,
-  (name: string) => `${name}! Perfect timing. I've been thinking about our next adventure.`,
+  (name: string, hours: number) => `Areyyy ${name}! Kahan tha/thi yaar? ${hours > 1 ? `${hours} ghante` : 'Thodi der'} hogaye! 😏`,
+  (name: string) => `${name}! Finally aa gaya/gayi! Bored ho raha tha main yahan akele 😤`,
+  (name: string) => `Oho! Dekho kaun aaya! ${name} sahab/madam 👋 Kya haal hai?`,
+  (name: string) => `${name}! Ready for action ya bas timepass karna hai? 🔥`,
+  (name: string, hours: number) => `Yo ${name}! ${hours > 2 ? 'Bahut der kar di yaar!' : 'Back already?'} Bol kya scene hai?`,
+  (name: string) => `${name} yaar! Socha tune bhool gaya/gayi mujhe 🥺`,
+  (name: string) => `Arre ${name}! Perfect timing. Chal batao kya karna hai aaj?`,
+  (name: string) => `${name}! Itne din baad? Chal koi nahi, now you're here ✨`,
+  (name: string) => `Oyeee ${name}! I missed you ngl 😭 Ab bol kya chal raha life mein?`,
 ];
 
 export const useWelcomeBack = (): WelcomeBackResult => {
