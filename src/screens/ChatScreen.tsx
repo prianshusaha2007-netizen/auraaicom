@@ -120,14 +120,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
         greeting = getWelcomeMessage(userProfile.name);
         setWelcomeBackShown(true);
       } else {
-        // Regular casual greetings - more human-like
+        // Regular casual greetings - Indian human-like style
         const casualGreetings = [
-          `Yo ${userProfile.name}! What's good? 🔥`,
-          `${userProfile.name}! Sup? Ready to roll?`,
-          `Hey hey ${userProfile.name}! Whatcha up to?`,
-          `${userProfile.name}! 👋 Let's get it.`,
-          `Ayy ${userProfile.name}! What are we doing today?`,
-          `${userProfile.name}! Finally, some company. What's the vibe?`,
+          `Areyyy ${userProfile.name}! Kya scene hai? 🔥`,
+          `Oye ${userProfile.name}! Kahan tha/thi itne din? 👋`,
+          `Heyy ${userProfile.name}! Sup yaar, sab badhiya?`,
+          `${userProfile.name}! Finally aa gaya/gayi! Bol kya plan hai today?`,
+          `Ayy ${userProfile.name}! Ready to roll? Batao kya karna hai ✨`,
+          `${userProfile.name} bro/sis! Kya chal raha, spill the tea 🍵`,
+          `Yo ${userProfile.name}! What's good? Main toh ready hoon 🙌`,
+          `${userProfile.name}! Acha sun na, I was thinking about you only!`,
         ];
         greeting = casualGreetings[Math.floor(Math.random() * casualGreetings.length)];
       }
