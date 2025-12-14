@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2, Ghost, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuraOrb } from '@/components/AuraOrb';
@@ -10,7 +10,7 @@ import { USPTiles } from '@/components/USPTiles';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ContinuousVoiceButton } from '@/components/ContinuousVoiceButton';
 import { MorningBriefingCard } from '@/components/MorningBriefingCard';
-import { useAura } from '@/contexts/AuraContext';
+import { useAura, ChatMessage } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -20,6 +20,7 @@ import { useWelcomeBack, updateLastActive } from '@/hooks/useWelcomeBack';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatScreenProps {
   onMenuClick?: () => void;
@@ -47,6 +48,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
   const [welcomeBackShown, setWelcomeBackShown] = useState(false);
+  
+  // Vanish Mode - temporary chat that disappears
+  const [vanishMode, setVanishMode] = useState(false);
+  const [vanishMessages, setVanishMessages] = useState<ChatMessage[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -147,8 +152,71 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
     if (selectedImage) {
       // Send image for analysis
       await handleImageAnalysis(userMessage);
+    } else if (vanishMode) {
+      // Vanish mode - don't save to DB
+      addVanishMessage({ content: userMessage, sender: 'user' });
+      // Still call AI but add response to vanish messages
+      await sendVanishMessage(userMessage);
     } else {
       await sendMessage(userMessage, selectedModel);
+    }
+  };
+
+  // Send message in vanish mode (no DB save)
+  const sendVanishMessage = async (message: string) => {
+    try {
+      const allMessages = [...vanishMessages, { id: 'temp', content: message, sender: 'user' as const, timestamp: new Date() }];
+      
+      const response = await supabase.functions.invoke('aura-chat', {
+        body: {
+          messages: allMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.content })),
+          userProfile: {
+            name: userProfile.name,
+            age: userProfile.age,
+            professions: userProfile.professions,
+            goals: userProfile.goals,
+            languages: userProfile.languages,
+            tonePreference: userProfile.tonePreference,
+            wakeTime: userProfile.wakeTime,
+            sleepTime: userProfile.sleepTime,
+          },
+          preferredModel: selectedModel,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      // Parse streaming response
+      const reader = response.data.getReader?.();
+      if (reader) {
+        let fullContent = '';
+        const messageId = addVanishMessage({ content: '', sender: 'aura' });
+        
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+              try {
+                const json = JSON.parse(line.slice(6));
+                const content = json.choices?.[0]?.delta?.content || '';
+                fullContent += content;
+                setVanishMessages(prev => 
+                  prev.map(m => m.id === messageId ? { ...m, content: fullContent } : m)
+                );
+              } catch {}
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Vanish chat error:', error);
+      addVanishMessage({ content: 'Oops, kuch gadbad ho gayi yaar. Try again? 😅', sender: 'aura' });
     }
   };
 
@@ -320,12 +388,84 @@ ${data.improvements?.length > 0 ? `**Suggestions:**\n${data.improvements.map((s:
     toast.info(`AURA says: ${message}`);
   };
 
-  const lastAuraMessage = chatMessages.filter(m => m.sender === 'aura').slice(-1)[0];
+  // Toggle Vanish Mode
+  const toggleVanishMode = () => {
+    if (vanishMode) {
+      // Exiting vanish mode - clear temporary messages
+      setVanishMessages([]);
+      toast.success('👻 Vanish mode off — messages cleared!', { duration: 2000 });
+    } else {
+      // Entering vanish mode
+      toast.success('👻 Vanish mode on — messages will disappear when you leave!', { 
+        duration: 3000,
+        description: 'Yaar ye chats save nahi honge, ekdum private 🤫'
+      });
+    }
+    setVanishMode(!vanishMode);
+  };
+
+  // Add vanish message (not saved to DB)
+  const addVanishMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    const newMessage: ChatMessage = {
+      ...message,
+      id: crypto.randomUUID(),
+      timestamp: new Date(),
+    };
+    setVanishMessages(prev => [...prev, newMessage]);
+    return newMessage.id;
+  };
+
+  // Current messages to display
+  const displayMessages = vanishMode ? vanishMessages : chatMessages;
+
+  const lastAuraMessage = displayMessages.filter(m => m.sender === 'aura').slice(-1)[0];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={cn("flex flex-col h-full relative", vanishMode && "vanish-mode-active")}>
+      {/* Vanish Mode Background Effect */}
+      <AnimatePresence>
+        {vanishMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{
+              background: 'linear-gradient(180deg, hsl(var(--primary) / 0.05) 0%, transparent 30%, transparent 70%, hsl(var(--primary) / 0.05) 100%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Vanish Mode Banner */}
+      <AnimatePresence>
+        {vanishMode && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-primary/10 border-b border-primary/20 overflow-hidden z-20"
+          >
+            <div className="flex items-center justify-center gap-2 py-2 px-4">
+              <Ghost className="w-4 h-4 text-primary animate-pulse" />
+              <span className="text-xs font-medium text-primary">
+                Vanish Mode On — Messages disappear when you leave 👻
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-primary hover:bg-primary/20"
+                onClick={toggleVanishMode}
+              >
+                Turn Off
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header with Orb and Controls */}
-      <div className="flex flex-col items-center pt-4 pb-2 relative">
+      <div className="flex flex-col items-center pt-4 pb-2 relative z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-primary/5 to-transparent" />
         
         {/* Menu Button */}
@@ -338,8 +478,24 @@ ${data.improvements?.length > 0 ? `**Suggestions:**\n${data.improvements.map((s:
           <Menu className="w-5 h-5" />
         </Button>
         
-        {/* Voice Mode & Model Selector */}
-        <div className="absolute top-2 right-4 z-10 flex items-center gap-2">
+        {/* Voice Mode, Vanish Mode & Model Selector */}
+        <div className="absolute top-2 right-4 z-10 flex items-center gap-1">
+          {/* Vanish Mode Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "rounded-full transition-all",
+              vanishMode 
+                ? "text-primary bg-primary/20 hover:bg-primary/30" 
+                : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+            )}
+            onClick={toggleVanishMode}
+            title={vanishMode ? "Exit Vanish Mode" : "Enable Vanish Mode (messages disappear)"}
+          >
+            <Ghost className={cn("w-5 h-5", vanishMode && "animate-pulse")} />
+          </Button>
+          
           <Button
             variant="ghost"
             size="icon"
@@ -368,24 +524,41 @@ ${data.improvements?.length > 0 ? `**Suggestions:**\n${data.improvements.map((s:
       )}
 
       {/* USP Tiles - show when chat is empty or has few messages */}
-      {chatMessages.length <= 1 && !showMorningBriefing && (
+      {displayMessages.length <= 1 && !showMorningBriefing && !vanishMode && (
         <div className="px-4 py-2">
           <USPTiles />
         </div>
       )}
 
+      {/* Vanish Mode Empty State */}
+      {vanishMode && vanishMessages.length === 0 && (
+        <div className="px-4 py-8 text-center">
+          <Ghost className="w-16 h-16 mx-auto text-primary/30 mb-4" />
+          <p className="text-muted-foreground font-medium">Vanish Mode Active 👻</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            Messages here won't be saved. Ekdum secret! 🤫
+          </p>
+        </div>
+      )}
+
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4">
-        {chatMessages.map((message) => (
-          <ChatBubble
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 z-10">
+        {displayMessages.map((message) => (
+          <motion.div
             key={message.id}
-            content={message.content}
-            sender={message.sender}
-            timestamp={message.timestamp}
-          />
+            initial={vanishMode ? { opacity: 0, y: 10 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChatBubble
+              content={message.content}
+              sender={message.sender}
+              timestamp={message.timestamp}
+            />
+          </motion.div>
         ))}
         
-        {isThinking && chatMessages[chatMessages.length - 1]?.sender === 'user' && (
+        {isThinking && displayMessages[displayMessages.length - 1]?.sender === 'user' && (
           <div className="flex justify-start">
             <div className="bg-aura-bubble-ai px-4 py-3 rounded-2xl rounded-bl-md">
               <div className="flex gap-1">
