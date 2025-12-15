@@ -28,7 +28,7 @@ interface ChatScreenProps {
 }
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceModeClick }) => {
-  const { chatMessages, addChatMessage, userProfile } = useAura();
+  const { chatMessages, addChatMessage, updateChatMessage, userProfile } = useAura();
   const { sendMessage, isThinking } = useAuraChat();
   const { processCommand } = useVoiceCommands({
     name: userProfile.name,
@@ -46,6 +46,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [showVoiceInput, setShowVoiceInput] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
   const [welcomeBackShown, setWelcomeBackShown] = useState(false);
   
@@ -146,8 +147,53 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
     }
   }, [userProfile.onboardingComplete, shouldShowWelcomeBack, welcomeBackShown]);
 
+  // Check if message is an image generation request
+  const isImageGenRequest = (text: string): boolean => {
+    const lowerText = text.toLowerCase();
+    const triggers = [
+      'generate image', 'create image', 'make image', 'draw', 'generate a', 'create a picture',
+      'generate picture', 'make a picture', 'create art', 'generate art', 'make art',
+      'imagine', 'visualize', 'picture of', 'image of', 'photo of', 'illustration of',
+      'banao image', 'image banao', 'photo banao', 'tasveer banao', 'picture bana',
+      'ek image', 'ek photo', 'ek tasveer'
+    ];
+    return triggers.some(t => lowerText.includes(t));
+  };
+
+  // Handle image generation
+  const handleImageGeneration = async (prompt: string) => {
+    setIsGeneratingImage(true);
+    addChatMessage({ content: prompt, sender: 'user' });
+    
+    // Add thinking message
+    const thinkingId = addChatMessage({ 
+      content: '🎨 Generating your image... hold on yaar, this is gonna be fire! ✨', 
+      sender: 'aura' 
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-image', {
+        body: { prompt }
+      });
+
+      if (error) throw error;
+
+      if (data.imageUrl) {
+        // Update thinking message with generated image
+        updateChatMessage(thinkingId, `Here's what I created for you! 🔥\n\n![Generated Image](${data.imageUrl})\n\n${data.textContent || 'Kaisa laga? Want me to create something else?'}`);
+      } else {
+        updateChatMessage(thinkingId, data.error || "Oops, couldn't generate that image yaar. Try a different prompt? 😅");
+      }
+    } catch (error) {
+      console.error('Image generation error:', error);
+      updateChatMessage(thinkingId, "Arre yaar, image generation failed. Maybe try again? 🙈");
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   const handleSend = async () => {
-    if ((!inputValue.trim() && !selectedImage) || isThinking) return;
+    if ((!inputValue.trim() && !selectedImage) || isThinking || isGeneratingImage) return;
 
     const userMessage = inputValue.trim();
     setInputValue('');
@@ -155,6 +201,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
     if (selectedImage) {
       // Send image for analysis
       await handleImageAnalysis(userMessage);
+    } else if (isImageGenRequest(userMessage)) {
+      // Handle image generation
+      await handleImageGeneration(userMessage);
     } else if (vanishMode) {
       // Vanish mode - don't save to DB
       addVanishMessage({ content: userMessage, sender: 'user' });

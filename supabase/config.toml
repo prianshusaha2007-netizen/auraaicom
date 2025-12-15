@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.generate-personality-insights]
 verify_jwt = false
+
+[functions.generate-image]
+verify_jwt = false
