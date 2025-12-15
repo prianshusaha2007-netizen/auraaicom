@@ -673,58 +673,67 @@ ${data.improvements?.length > 0 ? `**Suggestions:**\n${data.improvements.map((s:
         </div>
       )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 z-10">
-        {displayMessages.map((message) => (
-          <motion.div
-            key={message.id}
-            initial={vanishMode ? { opacity: 0, y: 10 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-          >
+      {/* Messages Area - Clean ChatGPT/Gemini Style */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 z-10">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {displayMessages.map((message) => (
             <ChatBubble
+              key={message.id}
               content={message.content}
               sender={message.sender}
               timestamp={message.timestamp}
+              onSpeak={message.sender === 'aura' ? handleSpeakMessage : undefined}
             />
-          </motion.div>
-        ))}
-        
-        {isThinking && displayMessages[displayMessages.length - 1]?.sender === 'user' && (
-          <div className="flex justify-start">
-            <div className="bg-aura-bubble-ai px-4 py-3 rounded-2xl rounded-bl-md">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-thinking" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-thinking" style={{ animationDelay: '0.2s' }} />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-thinking" style={{ animationDelay: '0.4s' }} />
+          ))}
+          
+          {/* Typing Indicator - Modern Style */}
+          {(isThinking || isGeneratingImage) && displayMessages[displayMessages.length - 1]?.sender === 'user' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-2"
+            >
+              {/* AURA Avatar */}
+              <div className="flex-shrink-0 mt-auto">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                  <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
+              
+              <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-bl-md shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {isGeneratingImage ? 'Creating image...' : 'Typing...'}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 pb-24 bg-gradient-to-t from-background via-background to-transparent space-y-3">
-        {/* Actions Bar */}
-        <div className="max-w-lg mx-auto">
-          <ActionsBar onActionSelect={handleActionSelect} />
-        </div>
-
+      {/* Input Area - Modern WhatsApp/Instagram Style */}
+      <div className="p-3 pb-20 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur-sm">
         {/* Image Preview */}
         {selectedImage && (
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-2xl mx-auto mb-3">
             <div className="relative inline-block">
               <img 
                 src={selectedImage} 
                 alt="Selected" 
-                className="h-20 w-20 object-cover rounded-xl border-2 border-primary/30"
+                className="h-24 w-24 object-cover rounded-2xl border-2 border-primary/30 shadow-lg"
               />
               <Button
                 variant="secondary"
                 size="icon"
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive hover:bg-destructive/80"
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive hover:bg-destructive/80 shadow-md"
                 onClick={clearSelectedImage}
               >
                 <X className="w-3 h-3 text-destructive-foreground" />
@@ -750,102 +759,153 @@ ${data.improvements?.length > 0 ? `**Suggestions:**\n${data.improvements.map((s:
           className="hidden"
         />
         
-        <div className="flex items-center gap-2 max-w-lg mx-auto">
-          {/* Camera Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={isThinking || isAnalyzingImage}
-            title="Take a photo"
-          >
-            <Camera className="w-5 h-5" />
-          </Button>
+        {/* Main Input Container */}
+        <div className="max-w-2xl mx-auto">
+          {/* Actions Bar */}
+          <div className="mb-2">
+            <ActionsBar onActionSelect={handleActionSelect} />
+          </div>
 
-          {/* Image Upload Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isThinking || isAnalyzingImage}
-            title="Upload image"
-          >
-            <ImagePlus className="w-5 h-5" />
-          </Button>
+          {/* Input Row */}
+          <div className="flex items-end gap-2">
+            {/* Left Actions */}
+            <div className="flex items-center gap-1 pb-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isThinking || isAnalyzingImage || isGeneratingImage}
+                title="Take a photo"
+              >
+                <Camera className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isThinking || isAnalyzingImage || isGeneratingImage}
+                title="Upload image"
+              >
+                <ImagePlus className="w-5 h-5" />
+              </Button>
+            </div>
 
-          {/* Wake Word Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'rounded-full shrink-0',
-              wakeWordEnabled ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary'
-            )}
-            onClick={toggleWakeWord}
-            title={wakeWordEnabled ? 'Disable wake word' : 'Enable "Hey AURA" wake word'}
-          >
-            <Radio className={cn('w-5 h-5', wakeWordEnabled && 'animate-pulse')} />
-          </Button>
-          
-          <ContinuousVoiceButton 
-            onTranscription={handleVoiceTranscription}
-            isProcessing={isThinking || isAnalyzingImage}
-            continuous={wakeWordEnabled}
-          />
-          
-          <div className="flex-1 relative">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={selectedImage ? "Add a message or tap send..." : "Hey AURA, what's up..."}
-              className="rounded-full pr-12 bg-muted/50 border-border/50 focus:border-primary/50"
-              disabled={isThinking || isAnalyzingImage}
-            />
+            {/* Text Input - Expandable like WhatsApp */}
+            <div className="flex-1 relative">
+              <div className={cn(
+                "flex items-end bg-card border border-border/60 rounded-3xl transition-all shadow-sm",
+                "focus-within:border-primary/50 focus-within:shadow-md focus-within:shadow-primary/5"
+              )}>
+                <textarea
+                  value={inputValue}
+                  onChange={(e) => {
+                    setInputValue(e.target.value);
+                    // Auto-resize
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder={selectedImage ? "Add a caption..." : "Message AURA... ✨"}
+                  className={cn(
+                    "flex-1 bg-transparent border-0 resize-none py-3 px-4",
+                    "text-[15px] placeholder:text-muted-foreground/60",
+                    "focus:outline-none focus:ring-0",
+                    "min-h-[44px] max-h-[120px]"
+                  )}
+                  style={{ height: '44px' }}
+                  disabled={isThinking || isAnalyzingImage || isGeneratingImage}
+                  rows={1}
+                />
+                
+                {/* Voice Button Inside Input */}
+                <div className="flex items-center pr-2 pb-1.5">
+                  <ContinuousVoiceButton 
+                    onTranscription={handleVoiceTranscription}
+                    isProcessing={isThinking || isAnalyzingImage || isGeneratingImage}
+                    continuous={wakeWordEnabled}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Send Button - Large and Prominent */}
             <Button
-              variant="ghost"
               size="icon"
               className={cn(
-                'absolute right-1 top-1/2 -translate-y-1/2 rounded-full',
-                'text-muted-foreground hover:text-primary',
-                (inputValue.trim() || selectedImage) && 'text-primary'
+                "h-11 w-11 rounded-full shadow-lg transition-all duration-200",
+                (inputValue.trim() || selectedImage) 
+                  ? "bg-primary hover:bg-primary/90 hover:scale-105 shadow-primary/30" 
+                  : "bg-muted hover:bg-muted/80"
               )}
               onClick={handleSend}
-              disabled={(!inputValue.trim() && !selectedImage) || isThinking || isAnalyzingImage}
+              disabled={(!inputValue.trim() && !selectedImage) || isThinking || isAnalyzingImage || isGeneratingImage}
             >
-              {isAnalyzingImage ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+              {isAnalyzingImage || isGeneratingImage ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className={cn(
+                  "w-5 h-5 transition-colors",
+                  (inputValue.trim() || selectedImage) ? "text-primary-foreground" : "text-muted-foreground"
+                )} />
               )}
             </Button>
           </div>
 
-          {/* Speak Last Message */}
-          {lastAuraMessage && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'rounded-full shrink-0',
-                isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'
+          {/* Bottom Actions Row */}
+          <div className="flex items-center justify-between mt-2 px-1">
+            <div className="flex items-center gap-1">
+              {/* Wake Word Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-8 px-3 rounded-full text-xs gap-1.5',
+                  wakeWordEnabled 
+                    ? 'text-primary bg-primary/10 hover:bg-primary/20' 
+                    : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                )}
+                onClick={toggleWakeWord}
+              >
+                <Radio className={cn('w-3.5 h-3.5', wakeWordEnabled && 'animate-pulse')} />
+                {wakeWordEnabled ? '"Hey AURA" On' : 'Wake Word'}
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Speak Last Message */}
+              {lastAuraMessage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'h-8 px-3 rounded-full text-xs gap-1.5',
+                    isSpeaking ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                  )}
+                  onClick={() => handleSpeakMessage(lastAuraMessage.content)}
+                >
+                  <Volume2 className={cn("w-3.5 h-3.5", isSpeaking && "animate-pulse")} />
+                  {isSpeaking ? 'Speaking...' : 'Listen'}
+                </Button>
               )}
-              onClick={() => handleSpeakMessage(lastAuraMessage.content)}
-            >
-              <Volume2 className="w-5 h-5" />
-            </Button>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0 text-muted-foreground hover:text-accent"
-            onClick={() => setShowAutomation(true)}
-          >
-            <Sparkles className="w-5 h-5" />
-          </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 rounded-full text-xs gap-1.5 text-muted-foreground hover:text-accent hover:bg-accent/10"
+                onClick={() => setShowAutomation(true)}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Actions
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
       
