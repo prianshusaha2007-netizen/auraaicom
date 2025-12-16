@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AuraProvider, useAura } from '@/contexts/AuraContext';
 import { useAuth } from '@/hooks/useAuth';
-import { NavigationBar } from '@/components/NavigationBar';
 import { AppSidebar, TabId } from '@/components/AppSidebar';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { MemoriesScreen } from '@/screens/MemoriesScreen';
@@ -101,7 +100,6 @@ const AppContent: React.FC = () => {
           {renderScreen()}
         </PageTransition>
       </main>
-      <NavigationBar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabId)} />
     </div>
   );
 };

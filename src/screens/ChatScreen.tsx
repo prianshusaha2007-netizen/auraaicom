@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2, Ghost, Timer, ChevronDown, GraduationCap } from 'lucide-react';
+import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2, Ghost, Timer, ChevronDown, GraduationCap, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AuraOrb } from '@/components/AuraOrb';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -11,6 +11,7 @@ import { ContinuousVoiceButton } from '@/components/ContinuousVoiceButton';
 import { MorningBriefingCard } from '@/components/MorningBriefingCard';
 import { QuickActions } from '@/components/QuickActions';
 import { TutorMode } from '@/components/TutorMode';
+import { ChatGames, GameType, getGameSystemPrompt } from '@/components/ChatGames';
 import { useAura, ChatMessage } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
@@ -59,6 +60,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
   const [welcomeBackShown, setWelcomeBackShown] = useState(false);
   const [showTutorMode, setShowTutorMode] = useState(false);
+  const [showChatGames, setShowChatGames] = useState(false);
+  const [activeGame, setActiveGame] = useState<GameType | null>(null);
   const [replyingTo, setReplyingTo] = useState<ExtendedMessage | null>(null);
   const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
   
@@ -443,6 +446,12 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
     sendMessage(message, selectedModel);
   };
 
+  const handleStartGame = (gameType: GameType, initialMessage: string) => {
+    setActiveGame(gameType);
+    addChatMessage({ content: initialMessage, sender: 'aura' });
+    toast.success(`Let's play ${gameType.replace('-', ' ')}! 🎮`);
+  };
+
   // Vanish mode functions
   useEffect(() => {
     return () => {
@@ -595,6 +604,14 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
           >
             <GraduationCap className="w-5 h-5" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("rounded-full", activeGame && "text-primary bg-primary/20")}
+            onClick={() => setShowChatGames(true)}
+          >
+            <Gamepad2 className={cn("w-5 h-5", activeGame && "animate-pulse")} />
+          </Button>
           <Button variant="ghost" size="icon" className="rounded-full" onClick={onVoiceModeClick}>
             <Mic className="w-5 h-5" />
           </Button>
@@ -626,6 +643,13 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chat Games Modal */}
+      <ChatGames 
+        isOpen={showChatGames} 
+        onClose={() => setShowChatGames(false)}
+        onStartGame={handleStartGame}
+      />
 
       {/* USP Tiles */}
       {displayMessages.length <= 1 && !showMorningBriefing && !vanishMode && (
@@ -686,7 +710,7 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
       </div>
 
       {/* Input Area */}
-      <div className="p-3 pb-20 bg-gradient-to-t from-background via-background/95 to-transparent">
+      <div className="p-3 pb-6 bg-gradient-to-t from-background via-background/95 to-transparent">
         {/* Reply Preview */}
         {replyingTo && (
           <motion.div

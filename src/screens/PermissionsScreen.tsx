@@ -1,135 +1,142 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, HardDrive, Users, Mic, AppWindow, Activity, CheckCircle2 } from 'lucide-react';
+import React from 'react';
+import { Shield, Mic, Camera, Bell, MapPin, HardDrive, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { useMobilePermissions, PermissionStatus } from '@/hooks/useMobilePermissions';
+import { cn } from '@/lib/utils';
 
 interface Permission {
-  id: string;
+  id: keyof PermissionStatus;
   name: string;
   description: string;
   icon: React.ElementType;
+  requestFn: () => Promise<boolean>;
 }
 
-const permissions: Permission[] = [
-  {
-    id: 'storage',
-    name: 'Storage Access',
-    description: 'Access files, photos, and media on your device',
-    icon: HardDrive,
-  },
-  {
-    id: 'contacts',
-    name: 'Contacts Access',
-    description: 'Read and sync contacts for personalized assistance',
-    icon: Users,
-  },
-  {
-    id: 'microphone',
-    name: 'Microphone Access',
-    description: 'Enable voice commands and voice chat',
-    icon: Mic,
-  },
-  {
-    id: 'appAccess',
-    name: 'App Access',
-    description: 'Launch and interact with other apps on your device',
-    icon: AppWindow,
-  },
-  {
-    id: 'backgroundActivity',
-    name: 'Background Activity',
-    description: 'Run in background for reminders and notifications',
-    icon: Activity,
-  },
-];
-
 export const PermissionsScreen: React.FC = () => {
-  const { toast } = useToast();
-  const [permissionStates, setPermissionStates] = useState<Record<string, boolean>>({
-    storage: false,
-    contacts: false,
-    microphone: false,
-    appAccess: false,
-    backgroundActivity: false,
-  });
+  const {
+    permissions,
+    isChecking,
+    requestMicrophone,
+    requestCamera,
+    requestNotifications,
+    requestGeolocation,
+    requestAllPermissions,
+  } = useMobilePermissions();
 
-  useEffect(() => {
-    const saved = localStorage.getItem('aura_permissions');
-    if (saved) {
-      setPermissionStates(JSON.parse(saved));
+  const permissionsList: Permission[] = [
+    {
+      id: 'microphone',
+      name: 'Microphone',
+      description: 'Voice commands and voice chat',
+      icon: Mic,
+      requestFn: requestMicrophone,
+    },
+    {
+      id: 'camera',
+      name: 'Camera',
+      description: 'Image capture and analysis',
+      icon: Camera,
+      requestFn: requestCamera,
+    },
+    {
+      id: 'notifications',
+      name: 'Notifications',
+      description: 'Reminders, alarms, and updates',
+      icon: Bell,
+      requestFn: requestNotifications,
+    },
+    {
+      id: 'geolocation',
+      name: 'Location',
+      description: 'Weather and location-based features',
+      icon: MapPin,
+      requestFn: requestGeolocation,
+    },
+    {
+      id: 'storage',
+      name: 'Storage',
+      description: 'Save images and data locally',
+      icon: HardDrive,
+      requestFn: async () => true,
+    },
+  ];
+
+  const getStatusIcon = (status: string) => {
+    if (status === 'granted') {
+      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    } else if (status === 'denied') {
+      return <XCircle className="w-5 h-5 text-destructive" />;
     }
-  }, []);
+    return null;
+  };
 
-  const handleToggle = (id: string, checked: boolean) => {
-    const newStates = { ...permissionStates, [id]: checked };
-    setPermissionStates(newStates);
-    localStorage.setItem('aura_permissions', JSON.stringify(newStates));
-
-    const permission = permissions.find(p => p.id === id);
-    
-    if (checked) {
-      toast({
-        title: `${permission?.name} Enabled`,
-        description: "AURA now has enhanced functionality on your device.",
-      });
-    } else {
-      toast({
-        title: `${permission?.name} Disabled`,
-        description: "Some features may be limited.",
-      });
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'granted': return 'Enabled';
+      case 'denied': return 'Denied';
+      case 'prompt': return 'Not requested';
+      case 'default': return 'Not requested';
+      case 'unavailable': return 'Not available';
+      default: return 'Unknown';
     }
   };
 
-  const enabledCount = Object.values(permissionStates).filter(Boolean).length;
-  const allEnabled = enabledCount === permissions.length;
+  const enabledCount = Object.values(permissions).filter(p => p === 'granted').length;
+  const totalCount = permissionsList.length;
+  const allEnabled = enabledCount === totalCount;
 
-  const enableAll = () => {
-    const allOn = permissions.reduce((acc, p) => ({ ...acc, [p.id]: true }), {});
-    setPermissionStates(allOn);
-    localStorage.setItem('aura_permissions', JSON.stringify(allOn));
-    toast({
-      title: "All Permissions Granted",
-      description: "AURA now has full functionality on your device.",
-    });
-  };
+  if (isChecking) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="mt-2 text-muted-foreground">Checking permissions...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto pb-24">
+    <div className="flex flex-col h-full overflow-y-auto pb-8">
       {/* Header */}
       <div className="p-4 pt-8 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 mb-2">
           <Shield className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-primary">Permissions</span>
         </div>
-        <h1 className="text-2xl font-bold">Android Permissions</h1>
+        <h1 className="text-2xl font-bold">App Permissions</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Grant permissions for full AURA experience
+          Grant permissions for the best AURA experience
         </p>
       </div>
 
       {/* Status Card */}
       <div className="px-4 mb-4">
-        <Card className={`border-2 transition-colors ${allEnabled ? 'border-green-500/50 bg-green-500/10' : 'border-muted'}`}>
+        <Card className={cn(
+          'border-2 transition-colors',
+          allEnabled ? 'border-green-500/50 bg-green-500/10' : 'border-muted'
+        )}>
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${allEnabled ? 'bg-green-500/20' : 'bg-muted'}`}>
-                <CheckCircle2 className={`w-5 h-5 ${allEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+              <div className={cn(
+                'w-10 h-10 rounded-full flex items-center justify-center',
+                allEnabled ? 'bg-green-500/20' : 'bg-muted'
+              )}>
+                <CheckCircle2 className={cn(
+                  'w-5 h-5',
+                  allEnabled ? 'text-green-500' : 'text-muted-foreground'
+                )} />
               </div>
               <div>
-                <p className="font-semibold">{enabledCount} of {permissions.length} enabled</p>
+                <p className="font-semibold">{enabledCount} of {totalCount} enabled</p>
                 <p className="text-xs text-muted-foreground">
                   {allEnabled ? 'Full functionality active' : 'Enable all for best experience'}
                 </p>
               </div>
             </div>
             {!allEnabled && (
-              <button
-                onClick={enableAll}
-                className="text-sm font-medium text-primary hover:underline"
-              >
+              <Button size="sm" onClick={requestAllPermissions}>
                 Enable All
-              </button>
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -137,32 +144,56 @@ export const PermissionsScreen: React.FC = () => {
 
       {/* Permissions List */}
       <div className="px-4 space-y-3">
-        {permissions.map((permission) => {
+        {permissionsList.map((permission) => {
           const Icon = permission.icon;
-          const isEnabled = permissionStates[permission.id];
+          const status = permissions[permission.id];
+          const isEnabled = status === 'granted';
+          const isDenied = status === 'denied';
           
           return (
             <Card 
               key={permission.id}
-              className={`transition-all ${isEnabled ? 'border-primary/30 bg-primary/5' : 'border-muted'}`}
+              className={cn(
+                'transition-all',
+                isEnabled && 'border-green-500/30 bg-green-500/5',
+                isDenied && 'border-destructive/30 bg-destructive/5'
+              )}
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                    isEnabled ? 'bg-primary/20' : 'bg-muted'
-                  }`}>
-                    <Icon className={`w-6 h-6 ${isEnabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div className={cn(
+                    'w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+                    isEnabled ? 'bg-green-500/20' : isDenied ? 'bg-destructive/20' : 'bg-muted'
+                  )}>
+                    <Icon className={cn(
+                      'w-6 h-6',
+                      isEnabled ? 'text-green-500' : isDenied ? 'text-destructive' : 'text-muted-foreground'
+                    )} />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">{permission.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{permission.name}</h3>
+                      {getStatusIcon(status)}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {permission.description}
                     </p>
+                    <p className={cn(
+                      'text-xs mt-1',
+                      isEnabled ? 'text-green-500' : isDenied ? 'text-destructive' : 'text-muted-foreground'
+                    )}>
+                      {getStatusText(status)}
+                    </p>
                   </div>
-                  <Switch
-                    checked={isEnabled}
-                    onCheckedChange={(checked) => handleToggle(permission.id, checked)}
-                  />
+                  {!isEnabled && permission.id !== 'storage' && (
+                    <Button 
+                      size="sm" 
+                      variant={isDenied ? "destructive" : "default"}
+                      onClick={permission.requestFn}
+                    >
+                      {isDenied ? 'Retry' : 'Enable'}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -174,8 +205,8 @@ export const PermissionsScreen: React.FC = () => {
       <div className="px-4 mt-6">
         <div className="p-4 rounded-xl bg-muted/50 border border-muted">
           <p className="text-xs text-muted-foreground text-center">
-            <span className="font-medium">Note:</span> This is a simulation for prototype purposes. 
-            No actual device permissions are being requested.
+            <span className="font-medium">Note:</span> Some permissions may require browser settings changes if previously denied.
+            For mobile apps, install the PWA for full native-like permissions.
           </p>
         </div>
       </div>
