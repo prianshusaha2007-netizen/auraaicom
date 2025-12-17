@@ -77,11 +77,12 @@ export const SmartReminderManager: React.FC<SmartReminderManagerProps> = ({ clas
 
     // Schedule notification
     if (permission === 'granted') {
-      const cancel = scheduleNotification({
+      const scheduleAt = new Date(Date.now() + minutes * 60 * 1000);
+      scheduleNotification({
         title: '⏰ AURA Reminder',
         body: newReminder.text,
         tag: `reminder-${Date.now()}`,
-      }, minutes * 60 * 1000);
+      }, scheduleAt);
 
       toast.success(`Reminder set for ${minutes} minutes from now!`);
     } else {
@@ -111,7 +112,7 @@ export const SmartReminderManager: React.FC<SmartReminderManagerProps> = ({ clas
       title: '⏰ AURA Reminder',
       body: text,
       tag: `quick-${Date.now()}`,
-    }, delayMinutes * 60 * 1000);
+    }, reminderTime);
 
     toast.success(`"${text}" reminder set for ${delayMinutes} minutes!`);
   };

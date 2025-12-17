@@ -1,7 +1,8 @@
-import React from 'react';
-import { History, MessageCircle, Trash2, Calendar } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { History, MessageCircle, Trash2, Calendar, Search, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAura } from '@/contexts/AuraContext';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
@@ -20,11 +21,20 @@ interface GroupedMessages {
 export const ChatHistoryScreen: React.FC = () => {
   const { chatMessages, clearChatHistory } = useAura();
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) return chatMessages;
+    const query = searchQuery.toLowerCase();
+    return chatMessages.filter(msg => 
+      msg.content.toLowerCase().includes(query)
+    );
+  }, [chatMessages, searchQuery]);
 
   const groupMessagesByDate = (): GroupedMessages[] => {
     const groups: Record<string, GroupedMessages['messages']> = {};
     
-    chatMessages.forEach((msg) => {
+    filteredMessages.forEach((msg) => {
       const date = new Date(msg.timestamp);
       let label: string;
       
@@ -49,7 +59,7 @@ export const ChatHistoryScreen: React.FC = () => {
 
     return Object.entries(groups).map(([label, messages]) => ({
       label,
-      messages: messages.reverse(), // Most recent first within group
+      messages: messages.reverse(),
     }));
   };
 
@@ -62,18 +72,18 @@ export const ChatHistoryScreen: React.FC = () => {
   };
 
   const groupedMessages = groupMessagesByDate();
-  const totalMessages = chatMessages.length;
+  const totalMessages = filteredMessages.length;
 
   return (
     <div className="h-full overflow-y-auto pb-24">
       {/* Header */}
       <div className="p-4 bg-gradient-to-b from-primary/10 to-transparent">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <History className="w-6 h-6 text-primary" />
             <h1 className="text-xl font-bold">Chat History</h1>
           </div>
-          {totalMessages > 0 && (
+          {chatMessages.length > 0 && (
             <Button
               variant="ghost"
               size="icon"
@@ -84,8 +94,33 @@ export const ChatHistoryScreen: React.FC = () => {
             </Button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {totalMessages} messages in conversation
+        
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10 bg-card border-border/50"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+        
+        <p className="text-sm text-muted-foreground mt-2">
+          {searchQuery 
+            ? `${totalMessages} results for "${searchQuery}"` 
+            : `${chatMessages.length} messages in conversation`
+          }
         </p>
       </div>
 
@@ -144,22 +179,31 @@ export const ChatHistoryScreen: React.FC = () => {
         ) : (
           <div className="text-center py-16">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
-              <MessageCircle className="w-8 h-8 text-muted-foreground" />
+              {searchQuery ? (
+                <Search className="w-8 h-8 text-muted-foreground" />
+              ) : (
+                <MessageCircle className="w-8 h-8 text-muted-foreground" />
+              )}
             </div>
-            <h3 className="font-semibold mb-2">No conversations yet</h3>
+            <h3 className="font-semibold mb-2">
+              {searchQuery ? 'No results found' : 'No conversations yet'}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Start chatting with AURA to see your history here
+              {searchQuery 
+                ? `Try searching for something else` 
+                : 'Start chatting with AURA to see your history here'
+              }
             </p>
           </div>
         )}
 
         {/* Stats Card */}
-        {totalMessages > 0 && (
+        {chatMessages.length > 0 && !searchQuery && (
           <Card className="border-border/50">
             <CardContent className="pt-4">
               <div className="flex justify-around text-center">
                 <div>
-                  <p className="text-2xl font-bold text-primary">{totalMessages}</p>
+                  <p className="text-2xl font-bold text-primary">{chatMessages.length}</p>
                   <p className="text-xs text-muted-foreground">Total Messages</p>
                 </div>
                 <div className="w-px bg-border" />
