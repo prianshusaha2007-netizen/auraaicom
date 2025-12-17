@@ -12,7 +12,8 @@ import {
   UtensilsCrossed,
   Sparkles,
   Bell,
-  Droplets
+  Droplets,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { WaterTracker } from '@/components/WaterTracker';
 import { SmartReminderManager } from '@/components/SmartReminderManager';
+import { WeeklyRoutineAnalysis } from '@/components/WeeklyRoutineAnalysis';
 
 const blockTypes = [
   { id: 'study', label: 'Study', icon: BookOpen, color: 'text-blue-500 bg-blue-500/10' },
@@ -182,10 +184,18 @@ export const RoutineScreen: React.FC = () => {
       </div>
 
       <Tabs defaultValue="schedule" className="flex-1">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="reminders">Smart Reminders</TabsTrigger>
+          <TabsTrigger value="analysis">
+            <BarChart3 className="w-4 h-4 mr-1" />
+            Analysis
+          </TabsTrigger>
+          <TabsTrigger value="reminders">Reminders</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="analysis" className="mt-0">
+          <WeeklyRoutineAnalysis />
+        </TabsContent>
 
         <TabsContent value="reminders" className="mt-0">
           <SmartReminderManager />
