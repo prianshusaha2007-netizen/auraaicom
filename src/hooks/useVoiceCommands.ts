@@ -375,11 +375,12 @@ export const useVoiceCommands = (userProfile?: UserProfile) => {
       
       if (delayMs) {
         await requestPermission();
+        const scheduleAt = new Date(Date.now() + delayMs);
         await scheduleNotification({
           title: '⏰ AURA Reminder',
           body: reminderText,
           tag: `reminder-${Date.now()}`,
-        }, delayMs);
+        }, scheduleAt);
 
         const timeInMinutes = Math.round(delayMs / 60000);
         const timeDisplay = timeInMinutes >= 60 

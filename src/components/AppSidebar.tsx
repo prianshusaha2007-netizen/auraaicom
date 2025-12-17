@@ -4,19 +4,12 @@ import {
   History, 
   Brain, 
   Calendar, 
-  Smile, 
-  User, 
-  Search, 
   Settings, 
   Gamepad2,
-  Shield,
   Plus,
   X,
-  Target,
   Droplets,
-  Camera,
-  Trophy,
-  Images
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,27 +34,21 @@ export type TabId =
   | 'gallery';
 
 interface MenuItem {
-  id: TabId;
+  id: TabId | 'new-chat';
   icon: React.ElementType;
   label: string;
   action?: boolean;
+  divider?: boolean;
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'chat', icon: Plus, label: 'New Chat', action: true },
+  { id: 'new-chat', icon: Plus, label: 'New Chat', action: true },
+  { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'history', icon: History, label: 'Chat History' },
-  { id: 'memories', icon: Brain, label: 'Memories' },
-  { id: 'routine', icon: Calendar, label: 'Routine & Reminders' },
-  { id: 'habits', icon: Target, label: 'Habit Tracker' },
+  { id: 'games', icon: Gamepad2, label: 'Play Games', divider: true },
+  { id: 'routine', icon: Calendar, label: 'Daily Routine' },
   { id: 'hydration', icon: Droplets, label: 'Hydration Tracker' },
-  { id: 'mood', icon: Smile, label: 'Mood Check-in' },
-  { id: 'image-analysis', icon: Camera, label: 'Image Analysis' },
-  { id: 'gallery', icon: Images, label: 'Image Gallery' },
-  { id: 'social', icon: Trophy, label: 'Social & Leaderboards' },
-  { id: 'profile', icon: User, label: 'Personality Profile' },
-  { id: 'search', icon: Search, label: 'Smart Search' },
-  { id: 'games', icon: Gamepad2, label: 'Games & Fun' },
-  { id: 'permissions', icon: Shield, label: 'Permissions' },
+  { id: 'memories', icon: Brain, label: 'Memories', divider: true },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -81,10 +68,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onNewChat,
 }) => {
   const handleItemClick = (item: MenuItem) => {
-    if (item.action && item.id === 'chat') {
+    if (item.action && item.id === 'new-chat') {
       onNewChat();
-    } else {
-      onTabChange(item.id);
+      onTabChange('chat');
+    } else if (item.id !== 'new-chat') {
+      onTabChange(item.id as TabId);
     }
     onClose();
   };
@@ -122,34 +110,39 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         {/* Menu Items */}
         <ScrollArea className="flex-1 h-[calc(100vh-80px)]">
           <div className="p-2 space-y-1">
-            {menuItems.map((item) => {
+            {menuItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id && !item.action;
+              const showDivider = item.divider && index < menuItems.length - 1;
               
               return (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
-                    'text-left hover:bg-muted/50',
-                    isActive && 'bg-primary/10 text-primary',
-                    item.action && 'bg-primary/5 border border-primary/20 hover:bg-primary/10'
+                <React.Fragment key={item.id}>
+                  <button
+                    onClick={() => handleItemClick(item)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+                      'text-left hover:bg-muted/50',
+                      isActive && 'bg-primary/10 text-primary',
+                      item.action && 'bg-primary/5 border border-primary/20 hover:bg-primary/10'
+                    )}
+                  >
+                    <Icon className={cn(
+                      'w-5 h-5',
+                      isActive ? 'text-primary' : 'text-muted-foreground',
+                      item.action && 'text-primary'
+                    )} />
+                    <span className={cn(
+                      'font-medium text-sm',
+                      isActive ? 'text-primary' : 'text-foreground',
+                      item.action && 'text-primary'
+                    )}>
+                      {item.label}
+                    </span>
+                  </button>
+                  {showDivider && (
+                    <div className="my-2 mx-4 border-t border-border/50" />
                   )}
-                >
-                  <Icon className={cn(
-                    'w-5 h-5',
-                    isActive ? 'text-primary' : 'text-muted-foreground',
-                    item.action && 'text-primary'
-                  )} />
-                  <span className={cn(
-                    'font-medium text-sm',
-                    isActive ? 'text-primary' : 'text-foreground',
-                    item.action && 'text-primary'
-                  )}>
-                    {item.label}
-                  </span>
-                </button>
+                </React.Fragment>
               );
             })}
           </div>

@@ -80,7 +80,7 @@ export const HabitTrackerScreen: React.FC = () => {
               title: `${habit.icon} Habit Reminder`,
               body: `Time to complete: ${habit.name}`,
               tag: `habit-${habit.id}`,
-            }, delayMs);
+            }, reminderDate);
           }
         }
       });

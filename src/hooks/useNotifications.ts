@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications, Token, ActionPerformed } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
 interface NotificationOptions {
@@ -10,19 +15,93 @@ interface NotificationOptions {
 }
 
 export const useNotifications = () => {
+  const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+
+  // Initialize push notifications for native
+  const initNativePush = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      let permStatus = await PushNotifications.checkPermissions();
+      
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+      
+      if (permStatus.receive !== 'granted') {
+        console.log('Push notification permission not granted');
+        return;
+      }
+
+      setPermission('granted');
+
+      // Register listeners
+      await PushNotifications.addListener('registration', async (token: Token) => {
+        console.log('FCM Token:', token.value);
+        setFcmToken(token.value);
+
+        // Save token to database
+        if (user?.id) {
+          try {
+            await supabase.from('push_subscriptions').upsert({
+              user_id: user.id,
+              endpoint: token.value,
+              p256dh: 'fcm',
+              auth: 'fcm',
+            }, { onConflict: 'user_id,endpoint' });
+          } catch (e) {
+            console.error('Save FCM token error:', e);
+          }
+        }
+      });
+
+      await PushNotifications.addListener('registrationError', (error) => {
+        console.error('Push registration error:', error);
+      });
+
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        toast.info(notification.title || 'Notification', {
+          description: notification.body,
+        });
+      });
+
+      await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
+        console.log('Push action:', action);
+      });
+
+      await PushNotifications.register();
+    } catch (error) {
+      console.error('Native push init error:', error);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    setIsSupported('Notification' in window);
-    if ('Notification' in window) {
-      setPermission(Notification.permission);
+    const isNativePlatform = Capacitor.isNativePlatform();
+    setIsNative(isNativePlatform);
+    
+    if (isNativePlatform) {
+      setIsSupported(true);
+      initNativePush();
+    } else {
+      setIsSupported('Notification' in window);
+      if ('Notification' in window) {
+        setPermission(Notification.permission);
+      }
     }
-  }, []);
+  }, [initNativePush]);
 
   const requestPermission = useCallback(async () => {
+    if (isNative) {
+      await initNativePush();
+      return permission === 'granted';
+    }
+
     if (!isSupported) {
-      toast.error('Notifications are not supported in this browser');
+      toast.error('Notifications are not supported');
       return false;
     }
 
@@ -34,26 +113,38 @@ export const useNotifications = () => {
         toast.success('Notifications enabled!');
         return true;
       } else if (result === 'denied') {
-        toast.error('Notifications blocked. Please enable them in browser settings.');
+        toast.error('Notifications blocked. Please enable in settings.');
         return false;
       }
       return false;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      toast.error('Failed to request notification permission');
+      console.error('Permission request error:', error);
       return false;
     }
-  }, [isSupported]);
+  }, [isSupported, isNative, permission, initNativePush]);
 
   const sendNotification = useCallback(async (options: NotificationOptions) => {
-    if (!isSupported) {
-      console.log('Notifications not supported');
-      return null;
+    if (isNative) {
+      try {
+        await LocalNotifications.schedule({
+          notifications: [{
+            id: Math.floor(Math.random() * 1000000),
+            title: options.title,
+            body: options.body || '',
+            sound: 'default',
+          }],
+        });
+        return true;
+      } catch (error) {
+        console.error('Native notification error:', error);
+        toast(options.title, { description: options.body });
+        return false;
+      }
     }
 
-    if (permission !== 'granted') {
-      const granted = await requestPermission();
-      if (!granted) return null;
+    if (!isSupported || permission !== 'granted') {
+      toast(options.title, { description: options.body });
+      return false;
     }
 
     try {
@@ -61,56 +152,75 @@ export const useNotifications = () => {
         body: options.body,
         icon: options.icon || '/favicon.ico',
         tag: options.tag,
-        data: options.data,
       });
 
-      notification.onclick = (event) => {
-        event.preventDefault();
+      notification.onclick = () => {
         window.focus();
         notification.close();
       };
 
-      return notification;
+      return true;
     } catch (error) {
-      console.error('Error sending notification:', error);
-      // Fallback to toast
-      toast(options.title, {
-        description: options.body,
-      });
-      return null;
+      toast(options.title, { description: options.body });
+      return false;
     }
-  }, [isSupported, permission, requestPermission]);
+  }, [isSupported, isNative, permission]);
 
-  const scheduleNotification = useCallback((options: NotificationOptions, delayMs: number) => {
-    const timeoutId = setTimeout(() => {
-      sendNotification(options);
-    }, delayMs);
+  const scheduleNotification = useCallback(async (
+    options: NotificationOptions,
+    scheduleAt: Date
+  ) => {
+    if (isNative) {
+      try {
+        await LocalNotifications.schedule({
+          notifications: [{
+            id: Math.floor(Math.random() * 1000000),
+            title: options.title,
+            body: options.body || '',
+            schedule: { at: scheduleAt },
+            sound: 'default',
+          }],
+        });
+        return true;
+      } catch (error) {
+        console.error('Schedule notification error:', error);
+        return false;
+      }
+    }
 
-    return () => clearTimeout(timeoutId);
-  }, [sendNotification]);
+    // Web fallback
+    const delay = scheduleAt.getTime() - Date.now();
+    if (delay > 0) {
+      setTimeout(() => sendNotification(options), delay);
+      return true;
+    }
+    return false;
+  }, [isNative, sendNotification]);
 
   const scheduleReminder = useCallback((
     reminderText: string,
     reminderTime: Date,
   ) => {
     const now = new Date();
-    const delay = reminderTime.getTime() - now.getTime();
-
-    if (delay <= 0) {
-      console.log('Reminder time has already passed');
+    if (reminderTime.getTime() <= now.getTime()) {
+      console.log('Reminder time has passed');
       return null;
     }
 
-    return scheduleNotification({
+    scheduleNotification({
       title: '⏰ AURA Reminder',
       body: reminderText,
       tag: `reminder-${Date.now()}`,
-    }, delay);
+    }, reminderTime);
+
+    return true;
   }, [scheduleNotification]);
 
   return {
     isSupported,
+    isNative,
     permission,
+    fcmToken,
     requestPermission,
     sendNotification,
     scheduleNotification,
