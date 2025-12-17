@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Trophy, Users, Flame, Target, TrendingUp, Medal, Crown, Star, Zap, Heart, Share2, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Users, Flame, Target, TrendingUp, Medal, Crown, Star, Zap, Heart, Share2, Plus, Droplets } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,6 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAura } from '@/contexts/AuraContext';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StreakCard } from '@/components/StreakCard';
 
@@ -28,6 +30,14 @@ interface Challenge {
   progress: number;
   reward: string;
   joined: boolean;
+}
+
+interface UserStats {
+  habitStreak: number;
+  hydrationStreak: number;
+  moodLogs: number;
+  habitsCompleted: number;
+  totalPoints: number;
 }
 
 const mockLeaderboard: LeaderboardEntry[] = [
@@ -85,14 +95,88 @@ const mockChallenges: Challenge[] = [
 
 export const SocialLeaderboardScreen: React.FC = () => {
   const { userProfile } = useAura();
+  const { user } = useAuth();
   const [challenges, setChallenges] = useState(mockChallenges);
   const [isStreakCardOpen, setIsStreakCardOpen] = useState(false);
+  const [userStats, setUserStats] = useState<UserStats>({
+    habitStreak: 0,
+    hydrationStreak: 0,
+    moodLogs: 0,
+    habitsCompleted: 0,
+    totalPoints: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+    }
+  }, [user]);
+
+  const fetchUserStats = async () => {
+    try {
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+
+      const [habitsRes, hydrationRes, moodRes] = await Promise.all([
+        supabase.from('habit_completions').select('*').eq('user_id', user?.id).gte('completed_at', weekStart.toISOString().split('T')[0]),
+        supabase.from('hydration_logs').select('*').eq('user_id', user?.id).gte('created_at', weekStart.toISOString()),
+        supabase.from('mood_checkins').select('*').eq('user_id', user?.id).gte('created_at', weekStart.toISOString()),
+      ]);
+
+      const habits = habitsRes.data || [];
+      const hydration = hydrationRes.data || [];
+      const moods = moodRes.data || [];
+
+      // Calculate streaks
+      const habitStreak = calculateStreak(habits.map(h => h.completed_at));
+      const hydrationStreak = calculateHydrationStreak(hydration);
+      
+      // Calculate points
+      const totalPoints = (habits.length * 10) + (hydration.length * 5) + (moods.length * 15);
+
+      setUserStats({
+        habitStreak,
+        hydrationStreak,
+        moodLogs: moods.length,
+        habitsCompleted: habits.length,
+        totalPoints: Math.max(totalPoints, 100), // Minimum base points
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const calculateStreak = (dates: string[]): number => {
+    if (dates.length === 0) return 0;
+    const uniqueDates = [...new Set(dates.map(d => d.split('T')[0]))].sort().reverse();
+    let streak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const expectedDate = new Date();
+      expectedDate.setDate(expectedDate.getDate() - i);
+      const expected = expectedDate.toISOString().split('T')[0];
+      
+      if (uniqueDates.includes(expected)) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  const calculateHydrationStreak = (logs: any[]): number => {
+    const uniqueDates = [...new Set(logs.map(l => l.created_at.split('T')[0]))];
+    return calculateStreak(uniqueDates);
+  };
 
   const userRank = 12;
-  const userScore = 1850;
-  const userStreak = 15;
-  const habitsCompleted = 12;
-  const moodLogs = 6;
+  const userScore = userStats.totalPoints;
 
   const joinChallenge = (challengeId: string) => {
     setChallenges(prev => 
@@ -167,13 +251,13 @@ export const SocialLeaderboardScreen: React.FC = () => {
             </div>
             <div className="p-2 rounded-xl bg-primary-foreground/10">
               <Flame className="w-5 h-5 mx-auto mb-1 text-orange-300" />
-              <p className="text-xl font-bold">{userStreak}</p>
+              <p className="text-xl font-bold">{userStats.habitStreak}</p>
               <p className="text-xs opacity-80">Day Streak</p>
             </div>
             <div className="p-2 rounded-xl bg-primary-foreground/10">
-              <Target className="w-5 h-5 mx-auto mb-1" />
-              <p className="text-xl font-bold">3</p>
-              <p className="text-xs opacity-80">Challenges</p>
+              <Droplets className="w-5 h-5 mx-auto mb-1 text-cyan-300" />
+              <p className="text-xl font-bold">{userStats.hydrationStreak}</p>
+              <p className="text-xs opacity-80">Hydration</p>
             </div>
           </div>
         </Card>
@@ -263,7 +347,11 @@ export const SocialLeaderboardScreen: React.FC = () => {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Flame className="w-3 h-3 text-orange-500" />
-                      {userStreak} days
+                      {userStats.habitStreak} days
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Droplets className="w-3 h-3 text-cyan-500" />
+                      {userStats.hydrationStreak} days
                     </span>
                   </div>
                 </div>
@@ -338,23 +426,23 @@ export const SocialLeaderboardScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-muted text-center">
                   <Heart className="w-5 h-5 mx-auto mb-1 text-pink-500" />
-                  <p className="text-xl font-bold">6</p>
+                  <p className="text-xl font-bold">{userStats.moodLogs}</p>
                   <p className="text-xs text-muted-foreground">Mood Logs</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted text-center">
                   <Star className="w-5 h-5 mx-auto mb-1 text-yellow-500" />
-                  <p className="text-xl font-bold">12</p>
+                  <p className="text-xl font-bold">{userStats.habitsCompleted}</p>
                   <p className="text-xs text-muted-foreground">Habits Done</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted text-center">
                   <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-                  <p className="text-xl font-bold">{userStreak}</p>
-                  <p className="text-xs text-muted-foreground">Day Streak</p>
+                  <p className="text-xl font-bold">{userStats.habitStreak}</p>
+                  <p className="text-xs text-muted-foreground">Habit Streak</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted text-center">
-                  <Trophy className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <p className="text-xl font-bold">+240</p>
-                  <p className="text-xs text-muted-foreground">Points Earned</p>
+                  <Droplets className="w-5 h-5 mx-auto mb-1 text-cyan-500" />
+                  <p className="text-xl font-bold">{userStats.hydrationStreak}</p>
+                  <p className="text-xs text-muted-foreground">Hydration Streak</p>
                 </div>
               </div>
             </Card>
@@ -364,11 +452,11 @@ export const SocialLeaderboardScreen: React.FC = () => {
         {/* Streak Card Modal */}
         <StreakCard
           userName={userProfile.name || 'Friend'}
-          streak={userStreak}
+          streak={userStats.habitStreak}
           score={userScore}
           rank={userRank}
-          habitsCompleted={habitsCompleted}
-          moodLogs={moodLogs}
+          habitsCompleted={userStats.habitsCompleted}
+          moodLogs={userStats.moodLogs}
           isOpen={isStreakCardOpen}
           onClose={() => setIsStreakCardOpen(false)}
         />

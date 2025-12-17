@@ -9,7 +9,10 @@ import {
   Plus,
   X,
   Droplets,
-  Search
+  Trophy,
+  BarChart3,
+  Image,
+  ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,16 +42,20 @@ interface MenuItem {
   label: string;
   action?: boolean;
   divider?: boolean;
+  section?: string;
 }
 
 const menuItems: MenuItem[] = [
   { id: 'new-chat', icon: Plus, label: 'New Chat', action: true },
-  { id: 'chat', icon: MessageSquare, label: 'Chat' },
+  { id: 'chat', icon: MessageSquare, label: 'Chat', section: 'Main' },
   { id: 'history', icon: History, label: 'Chat History' },
   { id: 'games', icon: Gamepad2, label: 'Play Games', divider: true },
-  { id: 'routine', icon: Calendar, label: 'Daily Routine' },
+  { id: 'routine', icon: Calendar, label: 'Daily Routine', section: 'Wellness' },
   { id: 'hydration', icon: Droplets, label: 'Hydration Tracker' },
-  { id: 'memories', icon: Brain, label: 'Memories', divider: true },
+  { id: 'social', icon: Trophy, label: 'Social Leaderboard', divider: true },
+  { id: 'memories', icon: Brain, label: 'Memories', section: 'Personal' },
+  { id: 'image-analysis', icon: Image, label: 'Image Analysis' },
+  { id: 'gallery', icon: ImageIcon, label: 'Image Gallery', divider: true },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
