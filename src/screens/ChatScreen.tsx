@@ -541,6 +541,16 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
 
   return (
     <div className={cn("flex flex-col h-full relative", vanishMode && "vanish-mode-active")}>
+      {/* Floating Menu Button - Always visible top-left */}
+      <Button 
+        variant="secondary" 
+        size="icon" 
+        className="fixed top-3 left-3 z-[60] h-10 w-10 rounded-full shadow-lg bg-background/95 backdrop-blur-md border border-border/50" 
+        onClick={onMenuClick}
+      >
+        <Menu className="w-5 h-5" />
+      </Button>
+
       {/* Vanish Mode Background */}
       <AnimatePresence>
         {vanishMode && (
@@ -561,7 +571,7 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="bg-primary/10 border-b border-primary/20 overflow-hidden z-20"
+            className="bg-primary/10 border-b border-primary/20 overflow-hidden z-20 mt-14"
           >
             <div className="flex items-center justify-center gap-2 py-2 px-4">
               <Ghost className="w-4 h-4 text-primary animate-pulse" />
@@ -610,17 +620,7 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
 
       {/* Fixed Header - Sticky on Scroll */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50">
-        <div className="flex items-center justify-between px-3 py-2">
-          {/* Left - Menu Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9 rounded-full shrink-0" 
-            onClick={onMenuClick}
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-          
+        <div className="flex items-center justify-between px-3 py-2 pl-14">
           {/* Center - Title */}
           <div className="flex items-center gap-2">
             <AuraOrb size="sm" isThinking={isThinking || isVoiceFeedbackSpeaking} />
