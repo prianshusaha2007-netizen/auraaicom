@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAura, ChatMessage } from '@/contexts/AuraContext';
 import { toast } from 'sonner';
+import { useReminderIntentDetection } from './useReminderIntentDetection';
+import { useReminders } from './useReminders';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
 
@@ -12,11 +14,25 @@ interface Message {
 export const useAuraChat = () => {
   const { chatMessages, addChatMessage, updateChatMessage, userProfile } = useAura();
   const [isThinking, setIsThinking] = useState(false);
+  const { detectReminderIntent, generateReminderConfirmation } = useReminderIntentDetection();
+  const { addFromNaturalLanguage } = useReminders();
 
   const sendMessage = useCallback(async (userMessage: string, preferredModel?: string) => {
     if (!userMessage.trim()) return;
 
-    // Add user message
+    // Check for reminder intent first
+    const reminderIntent = detectReminderIntent(userMessage);
+    if (reminderIntent.isReminder && reminderIntent.confidence >= 60) {
+      addChatMessage({ content: userMessage, sender: 'user' });
+      const reminder = addFromNaturalLanguage(userMessage);
+      if (reminder) {
+        const confirmation = generateReminderConfirmation(reminder.title, reminderIntent.timeText);
+        addChatMessage({ content: confirmation, sender: 'aura' });
+        return;
+      }
+    }
+
+    // Regular chat flow
     addChatMessage({ content: userMessage, sender: 'user' });
     setIsThinking(true);
 
@@ -134,7 +150,7 @@ export const useAuraChat = () => {
     } finally {
       setIsThinking(false);
     }
-  }, [chatMessages, addChatMessage, updateChatMessage, userProfile]);
+  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation]);
 
   return { sendMessage, isThinking };
 };
