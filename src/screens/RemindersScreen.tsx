@@ -4,7 +4,7 @@ import {
   Bell, Plus, Clock, Trash2, Edit2, 
   Phone, Droplets, Pill, Dumbbell, BookOpen,
   AlarmClock, RotateCcw, Calendar, Menu,
-  ChevronRight, Check, X
+  ChevronRight, Check, X, Mic
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useReminders, Reminder, ReminderCategory } from '@/hooks/useReminders';
+import { VoiceReminderInput } from '@/components/VoiceReminderInput';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -59,6 +60,7 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [newReminderText, setNewReminderText] = useState('');
+  const [showVoiceInput, setShowVoiceInput] = useState(false);
   
   // Form state for manual creation
   const [formTitle, setFormTitle] = useState('');
@@ -84,6 +86,17 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
     if (reminder) {
       toast.success(`Done. I've set that.`);
       setNewReminderText('');
+    }
+  };
+
+  const handleVoiceTranscription = (text: string) => {
+    setShowVoiceInput(false);
+    const reminder = addFromNaturalLanguage(text);
+    if (reminder) {
+      toast.success(`Got it! I'll remind you to ${reminder.title}. ⏰`);
+    } else {
+      setNewReminderText(text);
+      toast.info('I heard you! Edit if needed and tap Set.');
     }
   };
 
@@ -167,9 +180,12 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
             <Input
               value={newReminderText}
               onChange={(e) => setNewReminderText(e.target.value)}
-              placeholder="Type naturally... e.g., 'Remind me to call mom in 30 minutes'"
+              placeholder="Type or speak... 'Remind me to call mom in 30 min'"
               className="flex-1 rounded-xl"
               onKeyDown={(e) => e.key === 'Enter' && handleNaturalLanguageAdd()}
+            />
+            <VoiceReminderInput
+              onTranscription={handleVoiceTranscription}
             />
             <Button 
               onClick={handleNaturalLanguageAdd}

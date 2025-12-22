@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MapPin, Search, Mail, MessageCircle, Phone,
   Navigation, Star, Clock, ExternalLink, Menu,
   Send, Loader2, Coffee, Pill, Fuel, Building2,
-  Store, Utensils, ChevronRight, X, Check
+  Store, Utensils, ChevronRight, X, Check, Hospital, Dumbbell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,39 +17,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useNearbyPlaces, PlaceCategory } from '@/hooks/useNearbyPlaces';
 
 interface SmartServicesScreenProps {
   onMenuClick?: () => void;
 }
 
-interface NearbyPlace {
-  id: string;
-  name: string;
-  type: string;
-  distance: string;
-  rating: number;
-  isOpen: boolean;
-  address: string;
-  icon: string;
-}
-
-const placeCategories = [
+const placeCategories: { id: PlaceCategory; label: string; icon: React.ElementType; emoji: string }[] = [
   { id: 'cafe', label: 'Cafes', icon: Coffee, emoji: '☕' },
   { id: 'restaurant', label: 'Food', icon: Utensils, emoji: '🍽️' },
   { id: 'pharmacy', label: 'Pharmacy', icon: Pill, emoji: '💊' },
   { id: 'gas_station', label: 'Fuel', icon: Fuel, emoji: '⛽' },
   { id: 'atm', label: 'ATM', icon: Building2, emoji: '🏧' },
   { id: 'store', label: 'Stores', icon: Store, emoji: '🏪' },
-];
-
-// Simulated nearby places data
-const mockPlaces: NearbyPlace[] = [
-  { id: '1', name: 'Starbucks', type: 'cafe', distance: '0.3 km', rating: 4.2, isOpen: true, address: '123 Main St', icon: '☕' },
-  { id: '2', name: 'Cafe Coffee Day', type: 'cafe', distance: '0.5 km', rating: 4.0, isOpen: true, address: '456 Market Rd', icon: '☕' },
-  { id: '3', name: 'Apollo Pharmacy', type: 'pharmacy', distance: '0.2 km', rating: 4.5, isOpen: true, address: '789 Health Ave', icon: '💊' },
-  { id: '4', name: 'Domino\'s Pizza', type: 'restaurant', distance: '0.4 km', rating: 4.1, isOpen: true, address: '321 Food Lane', icon: '🍕' },
-  { id: '5', name: 'ICICI ATM', type: 'atm', distance: '0.1 km', rating: 4.0, isOpen: true, address: '555 Bank St', icon: '🏧' },
-  { id: '6', name: 'Shell Petrol Pump', type: 'gas_station', distance: '0.8 km', rating: 4.3, isOpen: true, address: '999 Highway Rd', icon: '⛽' },
+  { id: 'hospital', label: 'Hospital', icon: Hospital, emoji: '🏥' },
+  { id: 'gym', label: 'Gym', icon: Dumbbell, emoji: '🏋️' },
 ];
 
 export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenuClick }) => {
@@ -57,9 +39,18 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [places, setPlaces] = useState<NearbyPlace[]>(mockPlaces);
+  const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | null>(null);
+  
+  // Use the new nearby places hook
+  const { 
+    location, 
+    isLoadingLocation, 
+    locationError, 
+    places, 
+    isLoading: isLoadingPlaces, 
+    searchPlaces, 
+    openInMaps 
+  } = useNearbyPlaces();
   
   // Email state
   const [showEmailDialog, setShowEmailDialog] = useState(false);
@@ -73,22 +64,10 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
   const [whatsappContact, setWhatsappContact] = useState('');
   const [whatsappMessage, setWhatsappMessage] = useState('');
 
-  // Get user location
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.log('Location error:', error);
-        }
-      );
-    }
-  }, []);
+  const handleCategorySelect = (category: PlaceCategory | null) => {
+    setSelectedCategory(category);
+    searchPlaces(category);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -99,8 +78,7 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
     try {
       const { data, error } = await supabase.functions.invoke('aura-chat', {
         body: {
-          message: `Search and summarize: ${searchQuery}. Give a brief, conversational answer without bullet points.`,
-          context: [],
+          messages: [{ role: 'user', content: `Search and summarize: ${searchQuery}. Give a brief, conversational answer without bullet points.` }],
         }
       });
 
@@ -118,9 +96,8 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
     ? places.filter(p => p.type === selectedCategory)
     : places;
 
-  const handleOpenMaps = (place: NearbyPlace) => {
-    const query = encodeURIComponent(place.name + ' ' + place.address);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+  const handleOpenMaps = (place: typeof places[0]) => {
+    openInMaps(place);
     toast.success('Opening in Maps...');
   };
 
@@ -227,12 +204,12 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
         {/* Nearby Places */}
         {activeTab === 'nearby' && (
           <div className="p-4 space-y-4">
-            {/* Categories */}
+          {/* Categories */}
             <div className="flex gap-2 overflow-x-auto pb-2">
               <Button
                 variant={selectedCategory === null ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => handleCategorySelect(null)}
                 className="rounded-full shrink-0"
               >
                 All
@@ -242,7 +219,7 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
                   key={cat.id}
                   variant={selectedCategory === cat.id ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => handleCategorySelect(cat.id)}
                   className="rounded-full shrink-0"
                 >
                   <span className="mr-1">{cat.emoji}</span>
@@ -255,9 +232,11 @@ export const SmartServicesScreen: React.FC<SmartServicesScreenProps> = ({ onMenu
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="w-4 h-4" />
               <span>
-                {location 
-                  ? 'Using your current location'
-                  : 'Location not available - showing demo data'
+                {isLoadingLocation 
+                  ? 'Getting your location...'
+                  : location 
+                    ? `Using your location ${locationError ? '(approximate)' : ''}`
+                    : 'Location not available'
                 }
               </span>
             </div>
