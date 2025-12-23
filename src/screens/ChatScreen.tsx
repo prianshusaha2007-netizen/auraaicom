@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2, Ghost, Timer, ChevronDown, GraduationCap, Gamepad2 } from 'lucide-react';
+import { Send, Sparkles, Menu, Volume2, Mic, Radio, Camera, ImagePlus, X, Loader2, Ghost, Timer, ChevronDown, GraduationCap, Gamepad2, Search, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AuraOrb } from '@/components/AuraOrb';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -71,6 +71,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
       return {};
     }
   });
+
+  // Pinned messages
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('aura-pinned-messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   
   // Vanish Mode
   const [vanishMode, setVanishMode] = useState(false);
@@ -500,6 +514,18 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
     updateChatMessage(messageId, newContent);
   };
 
+  const handlePinMessage = (messageId: string) => {
+    setPinnedMessageIds(prev => {
+      const isPinned = prev.includes(messageId);
+      const updated = isPinned 
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId];
+      localStorage.setItem('aura-pinned-messages', JSON.stringify(updated));
+      toast.success(isPinned ? 'Message unpinned' : 'Message pinned 📌');
+      return updated;
+    });
+  };
+
   const handleReply = (message: ExtendedMessage) => {
     setReplyingTo(message);
     toast.info(`Replying to: "${message.content.slice(0, 30)}..."`);
@@ -574,6 +600,18 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
   };
 
   const displayMessages = vanishMode ? vanishMessages : chatMessages;
+  
+  // Filter messages by search
+  const filteredMessages = searchQuery.trim()
+    ? displayMessages.filter(m => 
+        m.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : displayMessages;
+
+  // Separate pinned and unpinned messages
+  const pinnedMessages = filteredMessages.filter(m => pinnedMessageIds.includes(m.id));
+  const unpinnedMessages = filteredMessages.filter(m => !pinnedMessageIds.includes(m.id));
+  
   const lastAuraMessage = displayMessages.filter(m => m.sender === 'aura').slice(-1)[0];
 
   return (
@@ -669,6 +707,14 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
             <Button
               variant="ghost"
               size="icon"
+              className={cn("h-8 w-8 rounded-full", showSearch && "text-primary bg-primary/20")}
+              onClick={() => setShowSearch(!showSearch)}
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className={cn("h-8 w-8 rounded-full", vanishMode && "text-primary bg-primary/20")}
               onClick={toggleVanishMode}
             >
@@ -700,6 +746,47 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
             </Button>
           </div>
         </div>
+
+        {/* Search Bar */}
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-3 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search messages..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-muted/50 border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    autoFocus
+                  />
+                </div>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-full"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              {searchQuery && (
+                <div className="px-4 pb-2 text-xs text-muted-foreground">
+                  {filteredMessages.length} result{filteredMessages.length !== 1 ? 's' : ''} found
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Morning Briefing */}
@@ -747,7 +834,38 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 z-10">
         <div className="max-w-2xl mx-auto space-y-4">
-          {displayMessages.map((message) => (
+          {/* Pinned Messages Section */}
+          {pinnedMessages.length > 0 && !searchQuery && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-3 px-2">
+                <Pin className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-primary">Pinned Messages</span>
+              </div>
+              <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                {pinnedMessages.map((message) => (
+                  <ChatBubble
+                    key={message.id}
+                    content={message.content}
+                    sender={message.sender}
+                    timestamp={message.timestamp}
+                    onSpeak={message.sender === 'aura' ? handleSpeakMessage : undefined}
+                    onReply={() => handleReply(message as ExtendedMessage)}
+                    onReact={(emoji) => handleReaction(message.id, emoji)}
+                    onDelete={() => handleDeleteMessage(message.id)}
+                    onEdit={message.sender === 'user' ? (newContent) => handleEditMessage(message.id, newContent) : undefined}
+                    onPin={() => handlePinMessage(message.id)}
+                    isPinned={true}
+                    reactions={messageReactions[message.id]}
+                    replyTo={replyingTo?.id === message.id ? null : undefined}
+                    searchHighlight={searchQuery}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Regular Messages */}
+          {(searchQuery ? filteredMessages : unpinnedMessages).map((message) => (
             <ChatBubble
               key={message.id}
               content={message.content}
@@ -758,8 +876,11 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
               onReact={(emoji) => handleReaction(message.id, emoji)}
               onDelete={() => handleDeleteMessage(message.id)}
               onEdit={message.sender === 'user' ? (newContent) => handleEditMessage(message.id, newContent) : undefined}
+              onPin={() => handlePinMessage(message.id)}
+              isPinned={pinnedMessageIds.includes(message.id)}
               reactions={messageReactions[message.id]}
               replyTo={replyingTo?.id === message.id ? null : undefined}
+              searchHighlight={searchQuery}
             />
           ))}
           
