@@ -4,19 +4,19 @@ project_id = "cdhrhwxctdtvkmlvedgb"
 verify_jwt = true
 
 [functions.elevenlabs-tts]
-verify_jwt = false
+verify_jwt = true
 
 [functions.analyze-image]
-verify_jwt = false
+verify_jwt = true
 
 [functions.aura-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.voice-to-text]
-verify_jwt = false
+verify_jwt = true
 
 [functions.text-to-voice]
-verify_jwt = false
+verify_jwt = true
 
 [functions.save-memory]
 verify_jwt = true
@@ -28,10 +28,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.web-search]
-verify_jwt = false
+verify_jwt = true
 
 [functions.realtime-session]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-notification]
 verify_jwt = false
@@ -40,10 +40,10 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.get-weather]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-location-info]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-push]
 verify_jwt = false
@@ -52,13 +52,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.transform-image]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-personality-insights]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-image]
-verify_jwt = false
+verify_jwt = true
 
 [functions.routine-notifications]
 verify_jwt = false
