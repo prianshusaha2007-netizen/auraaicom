@@ -16,6 +16,7 @@ import { PersonalityProfileScreen } from '@/screens/PersonalityProfileScreen';
 import { SmartSearchScreen } from '@/screens/SmartSearchScreen';
 import { ChatHistoryScreen } from '@/screens/ChatHistoryScreen';
 import { PermissionsScreen } from '@/screens/PermissionsScreen';
+import { PermissionsOnboardingScreen } from '@/screens/PermissionsOnboardingScreen';
 import { HabitTrackerScreen } from '@/screens/HabitTrackerScreen';
 import { HydrationScreen } from '@/screens/HydrationScreen';
 import { ImageAnalysisScreen } from '@/screens/ImageAnalysisScreen';
@@ -38,10 +39,18 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [voiceModeOpen, setVoiceModeOpen] = useState(false);
+  const [permissionsComplete, setPermissionsComplete] = useState(() => {
+    return localStorage.getItem('aura-permissions-complete') === 'true';
+  });
   
   const { activeReminder, snoozeReminder, completeReminder, dismissActiveReminder } = useReminders();
   
   useMorningBriefing();
+
+  const handlePermissionsComplete = () => {
+    localStorage.setItem('aura-permissions-complete', 'true');
+    setPermissionsComplete(true);
+  };
 
   if (isLoading) {
     return (
@@ -54,6 +63,16 @@ const AppContent: React.FC = () => {
 
   if (!userProfile.onboardingComplete) {
     return <OnboardingScreen />;
+  }
+
+  // Show permissions onboarding after profile onboarding
+  if (!permissionsComplete) {
+    return (
+      <PermissionsOnboardingScreen
+        onComplete={handlePermissionsComplete}
+        userName={userProfile.name}
+      />
+    );
   }
 
   const handleNewChat = () => {
