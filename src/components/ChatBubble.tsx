@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Download, Share2, Copy, Check, Volume2, ImageIcon, CornerUpLeft, Smile, Trash2, Pencil, X } from 'lucide-react';
+import { Download, Share2, Copy, Check, Volume2, ImageIcon, CornerUpLeft, Smile, Trash2, Pencil, X, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -19,9 +19,12 @@ interface ChatBubbleProps {
   onReply?: () => void;
   onDelete?: () => void;
   onEdit?: (newContent: string) => void;
+  onPin?: () => void;
+  isPinned?: boolean;
   replyTo?: { content: string; sender: string } | null;
   reactions?: string[];
   onReact?: (emoji: string) => void;
+  searchHighlight?: string;
 }
 
 const REACTION_EMOJIS = [
@@ -44,9 +47,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   onReply,
   onDelete,
   onEdit,
+  onPin,
+  isPinned,
   replyTo,
   reactions = [],
-  onReact
+  onReact,
+  searchHighlight
 }) => {
   const isUser = sender === 'user';
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -146,8 +152,23 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const extractedImageUrl = imageUrl || (content.match(/!\[.*?\]\((data:image\/[^)]+)\)/)?.[1]);
   const textContent = content.replace(/!\[.*?\]\(data:image\/[^)]+\)/g, '').trim();
 
-  // Parse basic markdown for AI messages
+  // Parse basic markdown and highlight search matches
   const renderContent = (text: string) => {
+    // First handle search highlighting
+    if (searchHighlight && searchHighlight.trim()) {
+      const regex = new RegExp(`(${searchHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const parts = text.split(regex);
+      return parts.map((part, i) => {
+        if (part.toLowerCase() === searchHighlight.toLowerCase()) {
+          return <mark key={i} className="bg-yellow-300 dark:bg-yellow-600 px-0.5 rounded">{part}</mark>;
+        }
+        if (!isUser && part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    }
+    
     if (isUser) return text;
     
     // Convert **bold** to styled text
@@ -206,6 +227,14 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
       )}
 
       <div className="flex flex-col max-w-[80%] sm:max-w-[75%] relative">
+        {/* Pinned Indicator */}
+        {isPinned && (
+          <div className="flex items-center gap-1 text-xs text-primary mb-1">
+            <Pin className="w-3 h-3 fill-primary" />
+            <span>Pinned</span>
+          </div>
+        )}
+
         {/* Reply Preview */}
         {replyTo && (
           <div className={cn(
@@ -402,6 +431,19 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
                 title="Reply"
               >
                 <CornerUpLeft className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            )}
+
+            {/* Pin Button */}
+            {onPin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onPin}
+                className={cn("h-6 w-6 rounded-full hover:bg-muted", isPinned && "text-primary")}
+                title={isPinned ? "Unpin" : "Pin"}
+              >
+                <Pin className={cn("w-3 h-3", isPinned ? "text-primary fill-primary" : "text-muted-foreground")} />
               </Button>
             )}
 
