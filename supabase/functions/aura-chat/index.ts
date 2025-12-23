@@ -1,9 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation constants
+const MAX_MESSAGE_LENGTH = 10000;
+const MAX_MESSAGES_COUNT = 100;
+const MAX_NAME_LENGTH = 100;
 
 // Model mapping for Lovable AI Gateway
 const MODEL_MAP: Record<string, string> = {
@@ -39,13 +45,125 @@ function selectModelForTask(message: string, preferredModel?: string): string {
   return 'google/gemini-2.5-flash';
 }
 
+// Validate and sanitize input
+function validateInput(data: any): { valid: boolean; error?: string; sanitized?: any } {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const { messages, userProfile, preferredModel, taskType } = data;
+
+  // Validate messages array
+  if (!Array.isArray(messages)) {
+    return { valid: false, error: 'Messages must be an array' };
+  }
+
+  if (messages.length === 0) {
+    return { valid: false, error: 'Messages array cannot be empty' };
+  }
+
+  if (messages.length > MAX_MESSAGES_COUNT) {
+    return { valid: false, error: `Too many messages. Maximum ${MAX_MESSAGES_COUNT} allowed` };
+  }
+
+  // Validate each message
+  const sanitizedMessages = [];
+  for (const msg of messages) {
+    if (!msg || typeof msg !== 'object') {
+      return { valid: false, error: 'Invalid message format' };
+    }
+
+    const role = msg.role;
+    if (!['user', 'assistant', 'system'].includes(role)) {
+      return { valid: false, error: 'Invalid message role' };
+    }
+
+    const content = typeof msg.content === 'string' ? msg.content : '';
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      return { valid: false, error: `Message content too long. Maximum ${MAX_MESSAGE_LENGTH} characters` };
+    }
+
+    sanitizedMessages.push({
+      role,
+      content: content.slice(0, MAX_MESSAGE_LENGTH)
+    });
+  }
+
+  // Validate userProfile if provided
+  let sanitizedProfile = null;
+  if (userProfile && typeof userProfile === 'object') {
+    sanitizedProfile = {
+      name: typeof userProfile.name === 'string' ? userProfile.name.slice(0, MAX_NAME_LENGTH) : undefined,
+      age: typeof userProfile.age === 'number' && userProfile.age > 0 && userProfile.age < 120 ? userProfile.age : undefined,
+      professions: Array.isArray(userProfile.professions) ? userProfile.professions.slice(0, 5).map((p: any) => String(p).slice(0, 100)) : undefined,
+      tonePreference: typeof userProfile.tonePreference === 'string' ? userProfile.tonePreference.slice(0, 50) : undefined,
+    };
+  }
+
+  // Validate preferredModel
+  const sanitizedModel = typeof preferredModel === 'string' && preferredModel.length < 50 ? preferredModel : undefined;
+
+  return {
+    valid: true,
+    sanitized: {
+      messages: sanitizedMessages,
+      userProfile: sanitizedProfile,
+      preferredModel: sanitizedModel,
+      taskType: typeof taskType === 'string' ? taskType.slice(0, 50) : undefined
+    }
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, userProfile, preferredModel, taskType } = await req.json();
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const validation = validateInput(requestData);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { messages, userProfile, preferredModel } = validation.sanitized;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -56,7 +174,7 @@ serve(async (req) => {
     const lastMessage = messages[messages.length - 1]?.content || '';
     const selectedModel = selectModelForTask(lastMessage, preferredModel);
     
-    console.log("Processing chat request for:", userProfile?.name || "user");
+    console.log("Processing chat request for user:", user.id);
     console.log("Selected model:", selectedModel);
     console.log("Message count:", messages?.length || 0);
 
@@ -149,7 +267,7 @@ BE HUMAN. BE REAL. BE AURA. 💫`;
     });
   } catch (e) {
     console.error("Chat function error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "An error occurred processing your request" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
