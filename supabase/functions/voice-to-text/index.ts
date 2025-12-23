@@ -6,9 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Maximum audio size: 25MB in base64 (Whisper API limit)
+// Maximum audio size: 25MB in base64
 const MAX_AUDIO_SIZE = 25 * 1024 * 1024;
-const VALID_LANGUAGES = ['auto', 'en', 'hi', 'bn', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko', 'ar'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -27,7 +26,7 @@ serve(async (req) => {
       );
     }
 
-    const { audio, language } = requestData;
+    const { audio } = requestData;
     
     // Validate audio
     if (!audio || typeof audio !== 'string') {
@@ -44,70 +43,91 @@ serve(async (req) => {
       );
     }
 
-    // Validate language
-    const selectedLanguage = language && typeof language === 'string' && VALID_LANGUAGES.includes(language)
-      ? language
-      : 'auto';
-
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!openaiApiKey) {
-      console.log('OpenAI API key not configured');
+    if (!lovableApiKey) {
+      console.error('LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ 
           text: '',
-          error: 'Voice transcription requires OpenAI API key',
+          error: 'Voice transcription not configured',
           requiresSetup: true
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Processing voice-to-text, language:', selectedLanguage);
+    console.log('Processing voice-to-text with Lovable AI...');
 
-    // Decode base64 audio
-    const binaryString = atob(audio);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    // Prepare form data for Whisper API
-    const formData = new FormData();
-    const blob = new Blob([bytes], { type: 'audio/webm' });
-    formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-    if (selectedLanguage && selectedLanguage !== 'auto') {
-      formData.append('language', selectedLanguage);
-    }
-
-    // Send to OpenAI Whisper
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    // Use Lovable AI to transcribe by sending audio as base64 with description request
+    // Since Lovable AI is a chat API, we'll ask it to describe what it hears
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a speech-to-text transcription assistant. Your only job is to transcribe the audio content. Output ONLY the transcribed text with no explanations, no quotes, no formatting. If you cannot understand the audio, output an empty string.'
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Transcribe this audio exactly as spoken:'
+              },
+              {
+                type: 'input_audio',
+                input_audio: {
+                  data: audio,
+                  format: 'webm'
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1000
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Whisper API error:', response.status, errorText);
-      throw new Error(`Whisper API error: ${response.status}`);
+      console.error('Lovable AI error:', response.status, errorText);
+      
+      // Fallback: Use a simpler approach - just acknowledge we heard something
+      // and return a placeholder that the app can use
+      return new Response(
+        JSON.stringify({ 
+          text: '',
+          error: 'Could not process audio. Please type your message instead.',
+          fallback: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const result = await response.json();
-    console.log('Transcription successful, length:', result.text?.length || 0);
+    const transcribedText = result.choices?.[0]?.message?.content?.trim() || '';
+    
+    console.log('Transcription result length:', transcribedText.length);
 
     return new Response(
-      JSON.stringify({ text: result.text }),
+      JSON.stringify({ text: transcribedText }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Voice-to-text error:', error);
     return new Response(
-      JSON.stringify({ error: 'An error occurred processing your request' }),
+      JSON.stringify({ 
+        error: 'Could not process audio',
+        text: ''
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
