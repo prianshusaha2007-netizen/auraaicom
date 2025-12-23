@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Download, Share2, Copy, Check, Volume2, ImageIcon, CornerUpLeft, Smile, MoreHorizontal, Heart, ThumbsUp, Laugh, Angry, Frown, Sparkles } from 'lucide-react';
+import { Download, Share2, Copy, Check, Volume2, ImageIcon, CornerUpLeft, Smile, Trash2, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import auraAvatar from '@/assets/aura-avatar.jpeg';
 
 interface ChatBubbleProps {
@@ -16,18 +17,20 @@ interface ChatBubbleProps {
   isGeneratingImage?: boolean;
   onSpeak?: (text: string) => void;
   onReply?: () => void;
+  onDelete?: () => void;
+  onEdit?: (newContent: string) => void;
   replyTo?: { content: string; sender: string } | null;
   reactions?: string[];
   onReact?: (emoji: string) => void;
 }
 
 const REACTION_EMOJIS = [
-  { emoji: '❤️', icon: Heart },
-  { emoji: '👍', icon: ThumbsUp },
-  { emoji: '😂', icon: Laugh },
-  { emoji: '😮', icon: Sparkles },
-  { emoji: '😢', icon: Frown },
-  { emoji: '😠', icon: Angry },
+  { emoji: '❤️', label: 'love' },
+  { emoji: '👍', label: 'like' },
+  { emoji: '😂', label: 'laugh' },
+  { emoji: '😮', label: 'wow' },
+  { emoji: '😢', label: 'sad' },
+  { emoji: '😠', label: 'angry' },
 ];
 
 export const ChatBubble: React.FC<ChatBubbleProps> = ({
@@ -39,6 +42,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   isGeneratingImage,
   onSpeak,
   onReply,
+  onDelete,
+  onEdit,
   replyTo,
   reactions = [],
   onReact
@@ -48,6 +53,17 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(content);
+  
+  // Swipe gesture
+  const x = useMotionValue(0);
+  const background = useTransform(
+    x,
+    [-100, 0, 100],
+    ['rgba(239,68,68,0.3)', 'rgba(0,0,0,0)', 'rgba(239,68,68,0.3)']
+  );
+  const deleteIconOpacity = useTransform(x, [-100, -50, 0, 50, 100], [1, 0.5, 0, 0.5, 1]);
 
   const handleCopy = async () => {
     try {
@@ -99,7 +115,31 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const handleReaction = (emoji: string) => {
     onReact?.(emoji);
     setShowReactions(false);
-    toast.success(`Reacted with ${emoji}`);
+  };
+
+  const handleDelete = () => {
+    onDelete?.();
+    toast.success('Message deleted');
+  };
+
+  const handleDragEnd = () => {
+    const xValue = x.get();
+    if (Math.abs(xValue) > 80) {
+      handleDelete();
+    }
+  };
+
+  const handleEditSave = () => {
+    if (editValue.trim() && editValue !== content) {
+      onEdit?.(editValue.trim());
+      toast.success('Message updated');
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditCancel = () => {
+    setEditValue(content);
+    setIsEditing(false);
   };
 
   // Extract image URL from markdown format
@@ -121,18 +161,37 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      className={cn(
-        'flex w-full gap-2 group',
-        isUser ? 'justify-end' : 'justify-start',
-        className
-      )}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowReactions(false); }}
-    >
+    <div className="relative">
+      {/* Delete indicator background */}
+      <motion.div 
+        style={{ background }}
+        className="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
+      >
+        <motion.div style={{ opacity: deleteIconOpacity }}>
+          <Trash2 className="w-5 h-5 text-destructive" />
+        </motion.div>
+        <motion.div style={{ opacity: deleteIconOpacity }}>
+          <Trash2 className="w-5 h-5 text-destructive" />
+        </motion.div>
+      </motion.div>
+
+      <motion.div 
+        style={{ x }}
+        drag={onDelete ? "x" : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.3}
+        onDragEnd={handleDragEnd}
+        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className={cn(
+          'flex w-full gap-2 group relative bg-background',
+          isUser ? 'justify-end' : 'justify-start',
+          className
+        )}
+        onMouseEnter={() => setShowActions(true)}
+        onMouseLeave={() => { setShowActions(false); setShowReactions(false); }}
+      >
       {/* AURA Avatar with Logo */}
       {!isUser && (
         <div className="flex-shrink-0 mt-auto">
@@ -222,15 +281,34 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             </div>
           )}
 
-          {/* Text Content */}
-          {textContent && (
+          {/* Text Content or Edit Mode */}
+          {isEditing && isUser ? (
+            <div className="flex gap-2">
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="flex-1 h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleEditSave();
+                  if (e.key === 'Escape') handleEditCancel();
+                }}
+              />
+              <Button size="icon" className="h-8 w-8" onClick={handleEditSave}>
+                <Check className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleEditCancel}>
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          ) : textContent ? (
             <p className={cn(
               "text-[15px] leading-relaxed whitespace-pre-wrap",
               !isUser && "text-foreground"
             )}>
               {renderContent(textContent)}
             </p>
-          )}
+          ) : null}
 
           {/* Reactions Display */}
           {reactions.length > 0 && (
@@ -301,6 +379,19 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             animate={{ opacity: showActions ? 1 : 0 }}
             className="flex items-center gap-0.5"
           >
+            {/* Edit Button - for user messages */}
+            {isUser && onEdit && !isEditing && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditing(true)}
+                className="h-6 w-6 rounded-full hover:bg-muted"
+                title="Edit"
+              >
+                <Pencil className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            )}
+
             {/* Reply Button */}
             {onReply && (
               <Button
@@ -324,6 +415,19 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
                 title="React"
               >
                 <Smile className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            )}
+
+            {/* Delete Button */}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDelete}
+                className="h-6 w-6 rounded-full hover:bg-destructive/10"
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3 text-destructive" />
               </Button>
             )}
 
@@ -368,6 +472,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           </div>
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };

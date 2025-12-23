@@ -36,7 +36,7 @@ interface ExtendedMessage extends ChatMessage {
 }
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceModeClick }) => {
-  const { chatMessages, addChatMessage, updateChatMessage, userProfile } = useAura();
+  const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, userProfile } = useAura();
   const { sendMessage, isThinking } = useAuraChat();
   const { processCommand } = useVoiceCommands({
     name: userProfile.name,
@@ -479,6 +479,27 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
     });
   };
 
+  const handleDeleteMessage = (messageId: string) => {
+    // For vanish mode, just remove from local state
+    if (vanishMode) {
+      setVanishMessages(prev => prev.filter(m => m.id !== messageId));
+    } else {
+      // Use context function to delete from state and database
+      deleteChatMessage(messageId);
+    }
+    // Also remove reactions for that message
+    setMessageReactions(prev => {
+      const updated = { ...prev };
+      delete updated[messageId];
+      localStorage.setItem('aura-message-reactions', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    updateChatMessage(messageId, newContent);
+  };
+
   const handleReply = (message: ExtendedMessage) => {
     setReplyingTo(message);
     toast.info(`Replying to: "${message.content.slice(0, 30)}..."`);
@@ -735,6 +756,8 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
               onSpeak={message.sender === 'aura' ? handleSpeakMessage : undefined}
               onReply={() => handleReply(message as ExtendedMessage)}
               onReact={(emoji) => handleReaction(message.id, emoji)}
+              onDelete={() => handleDeleteMessage(message.id)}
+              onEdit={message.sender === 'user' ? (newContent) => handleEditMessage(message.id, newContent) : undefined}
               reactions={messageReactions[message.id]}
               replyTo={replyingTo?.id === message.id ? null : undefined}
             />

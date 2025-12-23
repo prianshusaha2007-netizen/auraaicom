@@ -67,6 +67,7 @@ interface AuraContextType {
   chatMessages: ChatMessage[];
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => string;
   updateChatMessage: (id: string, content: string) => void;
+  deleteChatMessage: (id: string) => void;
   clearChatHistory: () => void;
   clearAllMemories: () => void;
   isLoading: boolean;
@@ -417,6 +418,15 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [user]
   );
 
+  const deleteChatMessage = useCallback(async (id: string) => {
+    setChatMessages((prev) => prev.filter((msg) => msg.id !== id));
+
+    if (user) {
+      const { error } = await supabase.from('chat_messages').delete().eq('id', id).eq('user_id', user.id);
+      if (error) console.error('Error deleting message:', error);
+    }
+  }, [user]);
+
   const clearChatHistory = useCallback(async () => {
     setChatMessages([]);
     if (user) {
@@ -454,6 +464,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         chatMessages,
         addChatMessage,
         updateChatMessage,
+        deleteChatMessage,
         clearChatHistory,
         clearAllMemories,
         isLoading,
