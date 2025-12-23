@@ -9,6 +9,54 @@ const corsHeaders = {
 // Maximum image size: 10MB in base64 (approximately)
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
+// SSRF protection: Validate image URLs to prevent internal network access
+function isValidImageUrl(url: string): { valid: boolean; error?: string } {
+  try {
+    const parsed = new URL(url);
+    
+    // Only allow HTTPS (no HTTP for security)
+    if (parsed.protocol !== 'https:') {
+      return { valid: false, error: 'Only HTTPS URLs are allowed' };
+    }
+    
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Block localhost/loopback addresses
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '0.0.0.0') {
+      return { valid: false, error: 'Internal URLs are not allowed' };
+    }
+    
+    // Block cloud metadata endpoints (AWS, GCP, Azure)
+    if (hostname === '169.254.169.254' || 
+        hostname.includes('metadata.google.internal') ||
+        hostname.includes('metadata.azure.com')) {
+      return { valid: false, error: 'Metadata endpoints are not allowed' };
+    }
+    
+    // Block private IP ranges
+    // 10.0.0.0/8
+    if (/^10\./.test(hostname)) {
+      return { valid: false, error: 'Private IP ranges are not allowed' };
+    }
+    // 192.168.0.0/16
+    if (/^192\.168\./.test(hostname)) {
+      return { valid: false, error: 'Private IP ranges are not allowed' };
+    }
+    // 172.16.0.0/12
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) {
+      return { valid: false, error: 'Private IP ranges are not allowed' };
+    }
+    // 169.254.0.0/16 (link-local)
+    if (/^169\.254\./.test(hostname)) {
+      return { valid: false, error: 'Link-local addresses are not allowed' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -63,19 +111,23 @@ serve(async (req) => {
     }
 
     // Check image size (for base64 data URLs)
-    if (image.startsWith('data:') && image.length > MAX_IMAGE_SIZE) {
-      return new Response(
-        JSON.stringify({ error: 'Image too large. Maximum 10MB allowed.' }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate URL format if it's a URL
-    if (!image.startsWith('data:') && !image.startsWith('http://') && !image.startsWith('https://')) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid image format. Must be a data URL or HTTP URL.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (image.startsWith('data:')) {
+      if (image.length > MAX_IMAGE_SIZE) {
+        return new Response(
+          JSON.stringify({ error: 'Image too large. Maximum 10MB allowed.' }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Validate HTTP URL with SSRF protection
+      const urlValidation = isValidImageUrl(image);
+      if (!urlValidation.valid) {
+        console.log('URL validation failed:', urlValidation.error, 'URL:', image.substring(0, 50));
+        return new Response(
+          JSON.stringify({ error: urlValidation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
