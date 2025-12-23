@@ -41,6 +41,28 @@ serve(async (req) => {
 
     const { latitude, longitude } = await req.json();
     
+    // Validate coordinates
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
+      return new Response(
+        JSON.stringify({ error: 'Latitude and longitude must be valid numbers' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (latitude < -90 || latitude > 90) {
+      return new Response(
+        JSON.stringify({ error: 'Latitude must be between -90 and 90' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      return new Response(
+        JSON.stringify({ error: 'Longitude must be between -180 and 180' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     console.log('Weather request for coordinates:', { latitude, longitude });
 
     // Use Open-Meteo API (free, no API key required)
