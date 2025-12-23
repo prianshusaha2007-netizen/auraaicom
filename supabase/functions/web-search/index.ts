@@ -1,9 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation constants
+const MAX_QUERY_LENGTH = 500;
+const VALID_SEARCH_TYPES = ['google', 'youtube'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,15 +16,70 @@ serve(async (req) => {
   }
 
   try {
-    const { query, type = 'google' } = await req.json();
-    console.log(`Web search request: type=${type}, query=${query}`);
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (!query) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { query, type = 'google' } = requestData;
+
+    // Validate query
+    if (!query || typeof query !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Query is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Query cannot be empty' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trimmedQuery.length > MAX_QUERY_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Query too long. Maximum ${MAX_QUERY_LENGTH} characters allowed.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate search type
+    const searchType = typeof type === 'string' && VALID_SEARCH_TYPES.includes(type) ? type : 'google';
+
+    console.log(`Web search for user ${user.id}: type=${searchType}, query=${trimmedQuery}`);
 
     // Use Lovable AI with grounded search capability
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -28,7 +88,7 @@ serve(async (req) => {
     }
 
     let systemPrompt = '';
-    if (type === 'youtube') {
+    if (searchType === 'youtube') {
       systemPrompt = `You are a YouTube search assistant. When the user searches for something, provide a list of 5-8 relevant YouTube video suggestions with:
 - Title (make it realistic and clickable)
 - Channel name
@@ -60,7 +120,7 @@ Only respond with the JSON array, no other text.`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Search for: ${query}` },
+          { role: "user", content: `Search for: ${trimmedQuery}` },
         ],
       }),
     });
@@ -87,18 +147,17 @@ Only respond with the JSON array, no other text.`;
       results = [];
     }
 
-    console.log(`Returning ${results.length} results for ${type} search`);
+    console.log(`Returning ${results.length} results for ${searchType} search`);
 
     return new Response(
-      JSON.stringify({ results, type }),
+      JSON.stringify({ results, type: searchType }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Web search error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Search failed';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

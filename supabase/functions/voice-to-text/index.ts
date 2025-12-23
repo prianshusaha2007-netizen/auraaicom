@@ -1,10 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Maximum audio size: 25MB in base64 (Whisper API limit)
+const MAX_AUDIO_SIZE = 25 * 1024 * 1024;
+const VALID_LANGUAGES = ['auto', 'en', 'hi', 'bn', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko', 'ar'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,11 +17,62 @@ serve(async (req) => {
   }
 
   try {
-    const { audio, language } = await req.json();
-    
-    if (!audio) {
-      throw new Error('No audio data provided');
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { audio, language } = requestData;
+    
+    // Validate audio
+    if (!audio || typeof audio !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Audio data is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (audio.length > MAX_AUDIO_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Audio too large. Maximum 25MB allowed.' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate language
+    const selectedLanguage = language && typeof language === 'string' && VALID_LANGUAGES.includes(language)
+      ? language
+      : 'auto';
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
@@ -32,7 +88,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Processing voice-to-text with Whisper, language:', language || 'auto');
+    console.log('Processing voice-to-text for user:', user.id, 'language:', selectedLanguage);
 
     // Decode base64 audio
     const binaryString = atob(audio);
@@ -46,8 +102,8 @@ serve(async (req) => {
     const blob = new Blob([bytes], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
-    if (language && language !== 'auto') {
-      formData.append('language', language);
+    if (selectedLanguage && selectedLanguage !== 'auto') {
+      formData.append('language', selectedLanguage);
     }
 
     // Send to OpenAI Whisper
@@ -76,7 +132,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Voice-to-text error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,9 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation constants
+const MAX_PROMPT_LENGTH = 2000;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -12,11 +16,62 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    if (!prompt) {
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { prompt } = requestData;
+    
+    // Validate prompt
+    if (!prompt || typeof prompt !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Prompt is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const trimmedPrompt = prompt.trim();
+    if (trimmedPrompt.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Prompt cannot be empty' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trimmedPrompt.length > MAX_PROMPT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Prompt too long. Maximum ${MAX_PROMPT_LENGTH} characters allowed.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -30,7 +85,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generating image for prompt: ${prompt.substring(0, 100)}...`);
+    console.log(`Generating image for user ${user.id}, prompt: ${trimmedPrompt.substring(0, 100)}...`);
 
     // Use Gemini image generation model via Lovable AI gateway
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -44,7 +99,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: `Generate a high quality image: ${prompt}. Make it visually stunning and detailed.`
+            content: `Generate a high quality image: ${trimmedPrompt}. Make it visually stunning and detailed.`
           }
         ],
         modalities: ['image', 'text']
@@ -83,7 +138,7 @@ serve(async (req) => {
     const textContent = message?.content || '';
 
     if (!imageUrl) {
-      console.error('No image in response:', JSON.stringify(data).substring(0, 500));
+      console.error('No image in response');
       return new Response(
         JSON.stringify({ 
           error: 'Could not generate image. Try a different prompt!',
@@ -97,16 +152,15 @@ serve(async (req) => {
       JSON.stringify({ 
         imageUrl,
         textContent,
-        prompt
+        prompt: trimmedPrompt
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Image generation error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to generate image';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

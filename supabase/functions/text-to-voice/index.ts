@@ -1,9 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation constants
+const MAX_TEXT_LENGTH = 5000;
+const VALID_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,11 +16,70 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voice } = await req.json();
-
-    if (!text) {
-      throw new Error('Text is required');
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { text, voice } = requestData;
+
+    // Validate text
+    if (!text || typeof text !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Text is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const trimmedText = text.trim();
+    if (trimmedText.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Text cannot be empty' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trimmedText.length > MAX_TEXT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Text too long. Maximum ${MAX_TEXT_LENGTH} characters allowed.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate voice
+    const selectedVoice = voice && typeof voice === 'string' && VALID_VOICES.includes(voice) 
+      ? voice 
+      : 'alloy';
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -31,7 +95,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Processing text-to-voice with OpenAI TTS, voice:', voice || 'alloy');
+    console.log('Processing text-to-voice for user:', user.id, 'voice:', selectedVoice);
 
     // Generate speech from text
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -42,8 +106,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'tts-1',
-        input: text,
-        voice: voice || 'alloy',
+        input: trimmedText,
+        voice: selectedVoice,
         response_format: 'mp3',
       }),
     });
@@ -76,7 +140,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Text-to-voice error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
