@@ -63,7 +63,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [showChatGames, setShowChatGames] = useState(false);
   const [activeGame, setActiveGame] = useState<GameType | null>(null);
   const [replyingTo, setReplyingTo] = useState<ExtendedMessage | null>(null);
-  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
+  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('aura-message-reactions');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   
   // Vanish Mode
   const [vanishMode, setVanishMode] = useState(false);
@@ -457,10 +464,19 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
   };
 
   const handleReaction = (messageId: string, emoji: string) => {
-    setMessageReactions(prev => ({
-      ...prev,
-      [messageId]: [...(prev[messageId] || []), emoji]
-    }));
+    setMessageReactions(prev => {
+      const existing = prev[messageId] || [];
+      // Toggle: remove if already exists, add if not
+      const hasReaction = existing.includes(emoji);
+      const updated = hasReaction 
+        ? existing.filter(e => e !== emoji)
+        : [...existing, emoji];
+      
+      const newReactions = { ...prev, [messageId]: updated };
+      // Persist to localStorage
+      localStorage.setItem('aura-message-reactions', JSON.stringify(newReactions));
+      return newReactions;
+    });
   };
 
   const handleReply = (message: ExtendedMessage) => {
