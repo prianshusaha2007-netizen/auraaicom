@@ -1,13 +1,15 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAura, ChatMessage } from '@/contexts/AuraContext';
 import { toast } from 'sonner';
 import { useReminderIntentDetection } from './useReminderIntentDetection';
 import { useReminders } from './useReminders';
 import { useStorytellingMode } from './useStorytellingMode';
 import { useMoodCheckIn } from './useMoodCheckIn';
+import { useLifeMemoryGraph } from './useLifeMemoryGraph';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
+const SUMMARIZATION_THRESHOLD = 50;
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -34,6 +36,30 @@ export const useAuraChat = () => {
     saveMood,
     markMoodAsked,
   } = useMoodCheckIn();
+  const {
+    getMemoryContext,
+    triggerSummarization,
+  } = useLifeMemoryGraph();
+  
+  const messageCountRef = useRef(0);
+
+  // Check and trigger summarization if needed
+  const checkSummarization = useCallback(async () => {
+    messageCountRef.current += 1;
+    
+    // Trigger summarization every 50 messages
+    if (messageCountRef.current >= SUMMARIZATION_THRESHOLD) {
+      console.log('Triggering auto-summarization...');
+      messageCountRef.current = 0;
+      
+      // Run in background
+      triggerSummarization().then(result => {
+        if (result?.summarized) {
+          console.log('Chat summarized successfully:', result.summary);
+        }
+      });
+    }
+  }, [triggerSummarization]);
 
   const sendMessage = useCallback(async (userMessage: string, preferredModel?: string) => {
     if (!userMessage.trim()) return;
@@ -104,6 +130,15 @@ export const useAuraChat = () => {
       }];
     }
 
+    // Add life memory context to conversation
+    const memoryContext = getMemoryContext();
+    if (memoryContext && !storyState.isActive) {
+      systemPrompt.push({
+        role: 'system',
+        content: memoryContext
+      });
+    }
+
     // Build conversation history for context - now including more messages
     const conversationHistory: Message[] = [
       ...systemPrompt,
@@ -117,6 +152,9 @@ export const useAuraChat = () => {
     
     // Add current message
     conversationHistory.push({ role: 'user', content: userMessage });
+    
+    // Trigger summarization check in background
+    checkSummarization();
 
     let assistantContent = '';
     let messageId: string | null = null;
@@ -227,7 +265,7 @@ export const useAuraChat = () => {
     } finally {
       setIsThinking(false);
     }
-  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage]);
+  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage, getMemoryContext, checkSummarization]);
 
   // Helper function for streaming story responses
   const streamStoryResponse = async (conversationHistory: Message[], preferredModel?: string) => {
