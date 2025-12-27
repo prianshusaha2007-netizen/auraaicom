@@ -101,6 +101,48 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_summaries: {
+        Row: {
+          created_at: string
+          emotional_trend: string | null
+          extracted_memories: string[] | null
+          id: string
+          key_topics: string[] | null
+          message_count: number
+          open_loops: string[] | null
+          summary: string
+          time_range_end: string
+          time_range_start: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emotional_trend?: string | null
+          extracted_memories?: string[] | null
+          id?: string
+          key_topics?: string[] | null
+          message_count?: number
+          open_loops?: string[] | null
+          summary: string
+          time_range_end: string
+          time_range_start: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emotional_trend?: string | null
+          extracted_memories?: string[] | null
+          id?: string
+          key_topics?: string[] | null
+          message_count?: number
+          open_loops?: string[] | null
+          summary?: string
+          time_range_end?: string
+          time_range_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       friend_codes: {
         Row: {
           code: string
@@ -263,6 +305,45 @@ export type Database = {
           id?: string
           reminder_enabled?: boolean
           reminder_interval_minutes?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_memories: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          importance_score: number | null
+          last_referenced_at: string | null
+          memory_type: string
+          metadata: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          importance_score?: number | null
+          last_referenced_at?: string | null
+          memory_type: string
+          metadata?: Json | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          importance_score?: number | null
+          last_referenced_at?: string | null
+          memory_type?: string
+          metadata?: Json | null
+          title?: string
           updated_at?: string
           user_id?: string
         }
