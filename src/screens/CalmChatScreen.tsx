@@ -408,6 +408,37 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
                 <p className="text-sm text-muted-foreground mb-4">{briefing.weather}</p>
               ) : null}
               
+              {/* Routine Visual Nudge */}
+              {routineVisual && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-4 mb-4"
+                >
+                  <p className="text-xs text-muted-foreground mb-2">Your day at a glance</p>
+                  <div 
+                    className="relative rounded-xl overflow-hidden cursor-pointer group"
+                    onClick={openVisual}
+                  >
+                    <img 
+                      src={routineVisual.imageUrl} 
+                      alt="Your routine" 
+                      className="w-full h-32 object-cover transition-transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">
+                        {routineVisual.blocksCount} blocks today
+                      </span>
+                      <Button size="sm" variant="secondary" className="h-6 text-xs rounded-full">
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              
               <p className="text-sm text-foreground mt-4 mb-3">
                 Does today feel like a light day or a push day?
               </p>
