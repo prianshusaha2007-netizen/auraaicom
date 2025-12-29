@@ -135,20 +135,21 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     scrollToBottom();
   }, [chatMessages, scrollToBottom]);
 
-  // Initial greeting
+  // Initial greeting - simple, human, not overwhelming
   useEffect(() => {
     if (chatMessages.length === 0 && userProfile.onboardingComplete) {
       const hour = new Date().getHours();
       let greeting = '';
       
+      // Simple, calm greetings - no feature explanations
       if (hour >= 5 && hour < 12) {
-        greeting = `Good morning, ${userProfile.name} ☀️`;
+        greeting = `Good morning, ${userProfile.name}. How are you feeling today?`;
       } else if (hour >= 12 && hour < 17) {
-        greeting = `Hey ${userProfile.name} 👋`;
+        greeting = `Hey ${userProfile.name}. How's your day going?`;
       } else if (hour >= 17 && hour < 21) {
-        greeting = `Good evening, ${userProfile.name} 🌆`;
+        greeting = `Good evening, ${userProfile.name}. How are you?`;
       } else {
-        greeting = `Hey ${userProfile.name}, still up? 🌙`;
+        greeting = `Hey ${userProfile.name}. Still up? 🌙`;
       }
       
       addChatMessage({ content: greeting, sender: 'aura' });
@@ -276,7 +277,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         </div>
       </header>
 
-      {/* Morning Flow */}
+      {/* Morning Flow - soft, not interrogative */}
       <AnimatePresence>
         {showMorningFlow && (
           <motion.div
@@ -287,26 +288,26 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           >
             <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-5 border border-primary/20">
               <p className="text-lg font-medium text-foreground mb-1">
-                Good morning, {userProfile.name} ☀️
+                Good morning, {userProfile.name}
               </p>
               {isBriefingLoading ? (
-                <p className="text-sm text-muted-foreground">Checking the day...</p>
+                <p className="text-sm text-muted-foreground">Checking the weather...</p>
               ) : briefing ? (
                 <p className="text-sm text-muted-foreground mb-4">{briefing.weather}</p>
               ) : null}
               
               <p className="text-sm text-foreground mt-4 mb-3">
-                What's the one thing you want to get done today?
+                Does today feel like a light day or a push day?
               </p>
               
               <div className="flex flex-wrap gap-2">
-                {['Work on project', 'Take it easy', 'Exercise', 'Catch up with someone'].map(opt => (
+                {['Light day', 'Push day', 'Not sure yet'].map(opt => (
                   <Button
                     key={opt}
                     variant="outline"
                     size="sm"
                     className="rounded-full text-xs bg-background/50"
-                    onClick={() => handleMorningQuestion(opt)}
+                    onClick={() => handleMorningQuestion(`Today feels like a ${opt.toLowerCase()}`)}
                   >
                     {opt}
                   </Button>
@@ -319,7 +320,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
                 className="mt-3 text-xs text-muted-foreground"
                 onClick={() => setShowMorningFlow(false)}
               >
-                Skip for now
+                Skip
               </Button>
             </div>
           </motion.div>
