@@ -10,6 +10,7 @@ import { VoiceModal } from '@/components/VoiceModal';
 import { WeeklyReflectionModal } from '@/components/WeeklyReflectionModal';
 import { CodingMentorBanner, CodingMentorMode } from '@/components/CodingMentorMode';
 import { RoutineVisualCard, RoutineVisualButton } from '@/components/RoutineVisualCard';
+import { RoutineWidget } from '@/components/RoutineWidget';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -469,6 +470,18 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Routine Widget - shows when not in morning flow and has blocks */}
+      {!showMorningFlow && chatMessages.length <= 1 && (
+        <div className="px-4 pb-2">
+          <RoutineWidget 
+            onViewVisual={openVisual}
+            onViewRoutine={() => {
+              // Navigate to routine screen would happen via parent
+            }}
+          />
+        </div>
+      )}
 
       {/* Chat Messages */}
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 py-6">
