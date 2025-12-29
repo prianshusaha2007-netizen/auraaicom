@@ -2,19 +2,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, Plus, Trash2, Edit2, User, Target, Heart, 
   Brain, Sparkles, Clock, Star, Filter, X, Check,
-  Compass, Users, Lightbulb, Calendar
+  Compass, Users, Lightbulb, Calendar, Image, Eye
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
+import { useRoutineVisualization } from '@/hooks/useRoutineVisualization';
 type MemoryType = 'person' | 'goal' | 'habit' | 'emotional_pattern' | 'decision' | 'preference' | 'routine' | 'relationship';
 
 interface LifeMemory {
@@ -48,6 +50,10 @@ export const LifeMemoriesScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<MemoryType | null>(null);
+  const [showRoutineVisual, setShowRoutineVisual] = useState(false);
+  
+  // Routine visualization
+  const { routineVisual } = useRoutineVisualization();
   
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -378,12 +384,47 @@ export const LifeMemoriesScreen: React.FC = () => {
 
       {/* Memories List */}
       <div className="flex-1 overflow-y-auto space-y-6">
+        {/* Routine Visual Section - Always at top when available */}
+        {routineVisual && !selectedType && !searchQuery && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Image className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-semibold text-muted-foreground">MY ROUTINE</h2>
+            </div>
+            <Card 
+              className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => setShowRoutineVisual(true)}
+            >
+              <div className="relative">
+                <img 
+                  src={routineVisual.imageUrl} 
+                  alt="Your daily routine" 
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Daily Routine Visual</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(routineVisual.generatedAt, 'MMM d, yyyy')} • {routineVisual.blocksCount} blocks
+                    </p>
+                  </div>
+                  <Button size="sm" variant="secondary" className="rounded-full gap-1.5">
+                    <Eye className="w-3.5 h-3.5" />
+                    View
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="text-center py-12">
             <Sparkles className="w-8 h-8 mx-auto text-primary animate-pulse mb-4" />
             <p className="text-muted-foreground">Loading memories...</p>
           </div>
-        ) : filteredMemories.length === 0 ? (
+        ) : filteredMemories.length === 0 && !routineVisual ? (
           <div className="text-center py-12">
             <Brain className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
             <p className="text-muted-foreground">
@@ -461,6 +502,49 @@ export const LifeMemoriesScreen: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Routine Visual Full View Modal */}
+      <AnimatePresence>
+        {showRoutineVisual && routineVisual && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowRoutineVisual(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-lg w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between p-3 border-b border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Your Daily Routine</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowRoutineVisual(false)}
+                    className="h-8 w-8 rounded-full"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <img 
+                  src={routineVisual.imageUrl} 
+                  alt="Your daily routine visualization"
+                  className="w-full h-auto"
+                />
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
