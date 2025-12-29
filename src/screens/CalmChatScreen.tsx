@@ -337,12 +337,12 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     : STATUS_MESSAGES[statusIndex];
 
   return (
-    <div className="flex flex-col h-full bg-background relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background relative">
       {/* Subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-      {/* Minimal Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/30">
+      {/* Fixed Header */}
+      <header className="flex-shrink-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/30">
         <div className="flex items-center justify-between px-4 py-3 pl-14">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/20 shadow-lg shadow-primary/10">
@@ -654,8 +654,8 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         )}
       </AnimatePresence>
 
-      {/* Input Area */}
-      <div className="p-4 pb-6 bg-gradient-to-t from-background via-background to-transparent">
+      {/* Fixed Input Area */}
+      <div className="flex-shrink-0 p-4 pb-6 bg-gradient-to-t from-background via-background to-transparent border-t border-border/30">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-end gap-2">
             {/* Plus Button for Media & Tools */}
