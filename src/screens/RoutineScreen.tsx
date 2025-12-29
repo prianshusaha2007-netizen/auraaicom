@@ -13,7 +13,8 @@ import {
   Sparkles,
   Bell,
   Droplets,
-  BarChart3
+  BarChart3,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { WaterTracker } from '@/components/WaterTracker';
 import { SmartReminderManager } from '@/components/SmartReminderManager';
 import { WeeklyRoutineAnalysis } from '@/components/WeeklyRoutineAnalysis';
+import { RoutineBlockEditor } from '@/components/RoutineBlockEditor';
 
 const blockTypes = [
   { id: 'study', label: 'Study', icon: BookOpen, color: 'text-blue-500 bg-blue-500/10' },
@@ -183,8 +185,12 @@ export const RoutineScreen: React.FC = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="schedule" className="flex-1">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+      <Tabs defaultValue="blocks" className="flex-1">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsTrigger value="blocks">
+            <Calendar className="w-4 h-4 mr-1" />
+            Blocks
+          </TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="analysis">
             <BarChart3 className="w-4 h-4 mr-1" />
@@ -192,6 +198,10 @@ export const RoutineScreen: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="blocks" className="mt-0 h-[calc(100vh-220px)]">
+          <RoutineBlockEditor />
+        </TabsContent>
 
         <TabsContent value="analysis" className="mt-0">
           <WeeklyRoutineAnalysis />
