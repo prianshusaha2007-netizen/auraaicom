@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useReminders, Reminder, ReminderCategory, RepeatPattern } from '@/hooks/useReminders';
+import { Loader2 } from 'lucide-react';
 import { VoiceReminderInput } from '@/components/VoiceReminderInput';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -54,7 +55,9 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
     addFromNaturalLanguage,
     updateReminder, 
     deleteReminder, 
-    toggleReminder 
+    toggleReminder,
+    getTimeRemaining,
+    isLoading,
   } = useReminders();
   
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -71,6 +74,14 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
 
   const activeReminders = reminders.filter(r => r.isActive && !r.completedAt);
   const completedReminders = reminders.filter(r => r.completedAt);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const handleQuickReminder = async (text: string) => {
     const reminder = await addFromNaturalLanguage(text);
@@ -241,6 +252,7 @@ export const RemindersScreen: React.FC<RemindersScreenProps> = ({ onMenuClick })
                       onToggle={() => toggleReminder(reminder.id)}
                       onEdit={() => setEditingReminder(reminder)}
                       onDelete={() => handleDelete(reminder.id)}
+                      timeRemaining={getTimeRemaining(reminder)}
                     />
                   ))
                 )}
@@ -403,6 +415,7 @@ interface ReminderCardProps {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  timeRemaining?: string;
 }
 
 const ReminderCard: React.FC<ReminderCardProps> = ({
@@ -410,6 +423,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
   onToggle,
   onEdit,
   onDelete,
+  timeRemaining,
 }) => {
   return (
     <motion.div
@@ -428,7 +442,14 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
           </div>
           
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium truncate">{reminder.title}</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-medium truncate">{reminder.title}</h4>
+              {timeRemaining && reminder.isActive && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {timeRemaining}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-3 h-3" />
               <span>{format(reminder.time, 'h:mm a')}</span>
@@ -437,6 +458,12 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
                   <span>•</span>
                   <RotateCcw className="w-3 h-3" />
                   <span className="capitalize">{reminder.repeatPattern}</span>
+                </>
+              )}
+              {reminder.status === 'fired' && (
+                <>
+                  <span>•</span>
+                  <span className="text-primary">Fired</span>
                 </>
               )}
             </div>
