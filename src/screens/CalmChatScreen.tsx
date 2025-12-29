@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Loader2, Download, RefreshCw } from 'lucide-react';
+import { Send, Plus, Loader2, Download, RefreshCw, Headphones } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CalmChatBubble } from '@/components/CalmChatBubble';
 import { MemorySavePrompt } from '@/components/MemorySavePrompt';
 import { MediaToolsSheet } from '@/components/MediaToolsSheet';
 import { ChatQuickActions } from '@/components/ChatQuickActions';
 import { VoiceInputButton } from '@/components/VoiceInputButton';
+import { VoiceModal } from '@/components/VoiceModal';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -86,6 +87,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const [showMorningFlow, setShowMorningFlow] = useState(false);
   const [showMediaSheet, setShowMediaSheet] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<{ url: string; prompt: string } | null>(null);
   const [generatedDoc, setGeneratedDoc] = useState<{ title: string; html: string; text: string } | null>(null);
   
@@ -274,6 +276,16 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
               </motion.p>
             </div>
           </div>
+          
+          {/* Voice Mode Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10"
+            onClick={() => setShowVoiceMode(true)}
+          >
+            <Headphones className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
@@ -509,6 +521,13 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         onAction={handleMediaAction}
         onFileSelect={handleFileSelect}
         isUploading={isUploading}
+      />
+
+      {/* Voice Mode Modal */}
+      <VoiceModal
+        isOpen={showVoiceMode}
+        onClose={() => setShowVoiceMode(false)}
+        userName={userProfile.name}
       />
     </div>
   );

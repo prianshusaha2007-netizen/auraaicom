@@ -207,13 +207,13 @@ export class RealtimeChat {
     return this.outputAnalyser;
   }
 
-  async init(instructions?: string) {
+  async init(instructions?: string, userName?: string) {
     try {
       console.log('Initializing realtime chat...');
       
       // Get ephemeral token from our edge function
       const { data: tokenData, error: tokenError } = await supabase.functions.invoke("realtime-session", {
-        body: { instructions }
+        body: { instructions, userName }
       });
 
       if (tokenError) {

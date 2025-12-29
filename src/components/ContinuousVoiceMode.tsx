@@ -54,17 +54,13 @@ export const ContinuousVoiceMode: React.FC<ContinuousVoiceModeProps> = ({
   const startConversation = async () => {
     setIsConnecting(true);
     try {
-      const instructions = `You are AURA, a warm and friendly AI companion talking to ${userName}. 
-Be conversational, natural, and engaging. Keep responses concise for voice (1-3 sentences usually).
-You're like a supportive best friend - casual, warm, and genuinely interested.
-Adapt your tone based on the conversation - playful when appropriate, supportive when needed.`;
-
       chatRef.current = new RealtimeChat(
         handleMessage,
         handleSpeakingChange,
         handleTranscript
       );
-      await chatRef.current.init(instructions);
+      // Pass userName to edge function for personalized greeting
+      await chatRef.current.init(undefined, userName);
       setIsConnected(true);
       setTranscript('');
       setAuraResponse('');
@@ -74,10 +70,10 @@ Adapt your tone based on the conversation - playful when appropriate, supportive
           setAnalyser(chatRef.current.getInputAnalyser());
         }
       }, 500);
-      toast.success('Voice mode connected!');
+      toast.success('Voice mode ready — just speak naturally');
     } catch (error) {
       console.error('Error starting conversation:', error);
-      toast.error('Failed to start voice mode. Please try again.');
+      toast.error('Could not connect to voice mode. Please try again.');
     } finally {
       setIsConnecting(false);
     }
