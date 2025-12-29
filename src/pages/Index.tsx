@@ -6,6 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { AppSidebar, TabId } from '@/components/AppSidebar';
 import { GlobalBottomNav } from '@/components/GlobalBottomNav';
 import { ReminderPopup } from '@/components/ReminderPopup';
+import { FloatingFocusButton } from '@/components/FloatingFocusButton';
 import { CalmChatScreen } from '@/screens/CalmChatScreen';
 import { LifeMemoriesScreen } from '@/screens/LifeMemoriesScreen';
 import { RoutineScreen } from '@/screens/RoutineScreen';
@@ -144,6 +145,9 @@ const AppContent: React.FC = () => {
         onTabChange={setActiveTab}
         onNewChat={handleNewChat}
       />
+
+      {/* Floating Focus Button - appears during active routine blocks */}
+      <FloatingFocusButton />
 
       <main className="flex-1 overflow-hidden pb-16">
         <PageTransition pageKey={activeTab}>

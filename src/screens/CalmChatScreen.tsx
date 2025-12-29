@@ -8,6 +8,7 @@ import { ChatQuickActions } from '@/components/ChatQuickActions';
 import { VoiceInputButton } from '@/components/VoiceInputButton';
 import { VoiceModal } from '@/components/VoiceModal';
 import { WeeklyReflectionModal } from '@/components/WeeklyReflectionModal';
+import { CodingMentorBanner, CodingMentorMode } from '@/components/CodingMentorMode';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -15,6 +16,7 @@ import { useRotatingPlaceholder } from '@/hooks/useRotatingPlaceholder';
 import { useMorningBriefing } from '@/hooks/useMorningBriefing';
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useWeeklyReflection } from '@/hooks/useWeeklyReflection';
+import { useRoutineBlocks } from '@/hooks/useRoutineBlocks';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -83,6 +85,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const { briefing, isLoading: isBriefingLoading, fetchBriefing } = useMorningBriefing();
   const { analyzeFile, generateImage, createDocument, downloadDocument, downloadImage, isUploading, isGenerating, isCreatingDoc } = useMediaActions();
   const { showReflectionPrompt, lastWeekStats, saveReflection, dismissReflection } = useWeeklyReflection();
+  const { activeBlock } = useRoutineBlocks();
   
   const [inputValue, setInputValue] = useState('');
   const [statusIndex, setStatusIndex] = useState(0);
@@ -96,6 +99,10 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const [showFloatingVoice, setShowFloatingVoice] = useState(false);
   const [shouldPulse, setShouldPulse] = useState(false);
   const [showVoiceTooltip, setShowVoiceTooltip] = useState(false);
+  const [showCodingMentor, setShowCodingMentor] = useState(false);
+  
+  // Check if coding block is active
+  const isCodingBlockActive = activeBlock?.block.type === 'coding';
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -341,6 +348,13 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           </Button>
         </div>
       </header>
+
+      {/* Coding Mentor Banner - shows during coding blocks */}
+      <AnimatePresence>
+        {isCodingBlockActive && !showCodingMentor && (
+          <CodingMentorBanner onActivate={() => setShowCodingMentor(true)} />
+        )}
+      </AnimatePresence>
 
       {/* Morning Flow - soft, not interrogative */}
       <AnimatePresence>
@@ -649,6 +663,41 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         stats={lastWeekStats}
         userName={userProfile.name}
       />
+
+      {/* Coding Mentor Full Screen */}
+      <AnimatePresence>
+        {showCodingMentor && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background"
+          >
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h2 className="font-semibold">Coding Mentor</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCodingMentor(false)}
+                >
+                  Back to Chat
+                </Button>
+              </div>
+              <div className="flex-1">
+                <CodingMentorMode
+                  isActive={true}
+                  onSendMessage={async (message, type) => {
+                    // Use the existing chat to get coding help
+                    const response = await sendMessage(`[Coding ${type}]: ${message}`);
+                    return chatMessages[chatMessages.length - 1]?.content || "I'm here to help with your code!";
+                  }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
