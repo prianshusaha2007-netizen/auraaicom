@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Loader2, Download, RefreshCw, Headphones } from 'lucide-react';
+import { Send, Plus, Loader2, Download, RefreshCw, Headphones, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CalmChatBubble } from '@/components/CalmChatBubble';
 import { MemorySavePrompt } from '@/components/MemorySavePrompt';
@@ -113,6 +113,8 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const [shouldPulse, setShouldPulse] = useState(false);
   const [showVoiceTooltip, setShowVoiceTooltip] = useState(false);
   const [showCodingMentor, setShowCodingMentor] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
   
   // Check if coding block is active
   const isCodingBlockActive = activeBlock?.block.type === 'coding';
@@ -157,28 +159,50 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     setShowQuickActions(!hasUserMessages);
   }, [chatMessages]);
 
-  // Scroll to bottom
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Scroll to bottom with smooth animation
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior
+      });
+    }
   }, []);
 
+  // Auto-scroll when new messages arrive (only if near bottom)
   useEffect(() => {
-    scrollToBottom();
-  }, [chatMessages, scrollToBottom]);
+    if (isNearBottom) {
+      // Small delay to ensure content is rendered
+      requestAnimationFrame(() => {
+        scrollToBottom('smooth');
+      });
+    }
+  }, [chatMessages, scrollToBottom, isNearBottom]);
 
-  // Show floating voice button when scrolled down
+  // Track scroll position for floating buttons
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
-      setShowFloatingVoice(container.scrollTop > 100);
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Show scroll button if more than 200px from bottom
+      setShowScrollButton(distanceFromBottom > 200);
+      
+      // Consider "near bottom" if within 100px
+      setIsNearBottom(distanceFromBottom < 100);
+      
+      // Show floating voice button when scrolled down
+      setShowFloatingVoice(scrollTop > 100);
+      
       // Reset activity timer on scroll
       lastActivityRef.current = Date.now();
       setShouldPulse(false);
     };
 
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -595,6 +619,28 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Floating Scroll to Bottom Button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            className="absolute bottom-32 left-1/2 -translate-x-1/2 z-40"
+          >
+            <Button
+              size="sm"
+              variant="secondary"
+              className="rounded-full shadow-lg gap-1.5 px-4 bg-card/95 backdrop-blur-sm border border-border/50 hover:bg-card"
+              onClick={() => scrollToBottom('smooth')}
+            >
+              <ChevronDown className="w-4 h-4" />
+              <span className="text-xs">New messages</span>
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating Voice Button */}
       <AnimatePresence>
