@@ -72,11 +72,12 @@ export const useVoiceGreeting = (): UseVoiceGreetingReturn => {
   return { playGreeting, isPlaying, error };
 };
 
-// Morning greeting messages based on time
-export const getMorningGreeting = (userName: string, aiName: string = 'AURRA'): string => {
+// Greeting messages based on time of day
+export const getTimeBasedGreeting = (userName: string, aiName: string = 'AURRA'): string => {
   const hour = new Date().getHours();
   
   if (hour >= 5 && hour < 12) {
+    // Morning greetings (5 AM - 12 PM)
     const greetings = [
       `Good morning, ${userName}. ${aiName} here. Hope you slept well.`,
       `Morning, ${userName}. Ready for today?`,
@@ -85,13 +86,38 @@ export const getMorningGreeting = (userName: string, aiName: string = 'AURRA'): 
     ];
     return greetings[Math.floor(Math.random() * greetings.length)];
   } else if (hour >= 12 && hour < 17) {
-    return `Good afternoon, ${userName}. How's your day going?`;
+    // Afternoon greetings (12 PM - 5 PM)
+    const greetings = [
+      `Good afternoon, ${userName}. How's your day going?`,
+      `Hey ${userName}, afternoon check-in. Everything okay?`,
+      `${userName}, hope your day's been good so far. ${aiName}'s here.`,
+      `Afternoon, ${userName}. Need anything?`,
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
   } else if (hour >= 17 && hour < 21) {
-    return `Good evening, ${userName}. How was your day?`;
+    // Evening greetings (5 PM - 9 PM)
+    const greetings = [
+      `Good evening, ${userName}. How was your day?`,
+      `Evening, ${userName}. Time to unwind?`,
+      `Hey ${userName}, the day's winding down. How are you feeling?`,
+      `${userName}, evening's here. ${aiName}'s ready to listen.`,
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
   } else {
-    return `Hey ${userName}. Still up? I'm here if you need to talk.`;
+    // Night greetings (9 PM - 5 AM)
+    const greetings = [
+      `Hey ${userName}. Still up? I'm here if you need to talk.`,
+      `${userName}, it's late. Everything okay?`,
+      `Night owl, ${userName}? ${aiName}'s here with you.`,
+      `Late night, ${userName}. Can't sleep, or just winding down?`,
+      `${userName}, quiet hours. Sometimes these are the best times to think.`,
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
   }
 };
+
+// Legacy function for backward compatibility
+export const getMorningGreeting = getTimeBasedGreeting;
 
 // Onboarding naming step greeting
 export const getOnboardingNamingGreeting = (): string => {
