@@ -7,7 +7,29 @@ import { useAura } from '@/contexts/AuraContext';
 import { AuraOrb } from './AuraOrb';
 
 const GREETING_KEY = 'aurra-last-greeting';
-const GREETING_COOLDOWN_HOURS = 4; // Show greeting every 4 hours max
+export const GREETING_FREQUENCY_KEY = 'aurra-greeting-frequency';
+
+export type GreetingFrequency = 'every4h' | 'daily' | 'off';
+
+export const getGreetingFrequency = (): GreetingFrequency => {
+  const saved = localStorage.getItem(GREETING_FREQUENCY_KEY);
+  if (saved === 'every4h' || saved === 'daily' || saved === 'off') {
+    return saved;
+  }
+  return 'every4h'; // Default
+};
+
+export const setGreetingFrequency = (frequency: GreetingFrequency) => {
+  localStorage.setItem(GREETING_FREQUENCY_KEY, frequency);
+};
+
+const getCooldownHours = (frequency: GreetingFrequency): number => {
+  switch (frequency) {
+    case 'every4h': return 4;
+    case 'daily': return 24;
+    case 'off': return Infinity;
+  }
+};
 
 export const MorningGreeting: React.FC = () => {
   const { userProfile } = useAura();
@@ -20,15 +42,21 @@ export const MorningGreeting: React.FC = () => {
     if (hasChecked.current) return;
     hasChecked.current = true;
 
+    const frequency = getGreetingFrequency();
+    
+    // If greetings are off, don't show
+    if (frequency === 'off') return;
+
     const lastGreeting = localStorage.getItem(GREETING_KEY);
     const now = new Date();
+    const cooldownHours = getCooldownHours(frequency);
     
-    // Check cooldown - don't show more than once every 4 hours
+    // Check cooldown
     if (lastGreeting) {
       const lastTime = new Date(lastGreeting);
       const hoursSince = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60);
       
-      if (hoursSince < GREETING_COOLDOWN_HOURS) {
+      if (hoursSince < cooldownHours) {
         return; // Too soon since last greeting
       }
     }
