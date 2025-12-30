@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, X } from 'lucide-react';
+import { Volume2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useVoiceGreeting, getMorningGreeting } from '@/hooks/useVoiceGreeting';
+import { useVoiceGreeting, getTimeBasedGreeting } from '@/hooks/useVoiceGreeting';
 import { useAura } from '@/contexts/AuraContext';
 import { AuraOrb } from './AuraOrb';
 
-const MORNING_GREETING_KEY = 'aurra-last-morning-greeting';
+const GREETING_KEY = 'aurra-last-greeting';
+const GREETING_COOLDOWN_HOURS = 4; // Show greeting every 4 hours max
 
 export const MorningGreeting: React.FC = () => {
   const { userProfile } = useAura();
@@ -19,34 +20,28 @@ export const MorningGreeting: React.FC = () => {
     if (hasChecked.current) return;
     hasChecked.current = true;
 
-    // Check if we should show morning greeting
-    const lastGreeting = localStorage.getItem(MORNING_GREETING_KEY);
+    const lastGreeting = localStorage.getItem(GREETING_KEY);
     const now = new Date();
-    const hour = now.getHours();
     
-    // Only show between 5 AM and 11 AM
-    if (hour < 5 || hour >= 12) return;
-    
-    // Check if already shown today
+    // Check cooldown - don't show more than once every 4 hours
     if (lastGreeting) {
-      const lastDate = new Date(lastGreeting);
-      if (
-        lastDate.getDate() === now.getDate() &&
-        lastDate.getMonth() === now.getMonth() &&
-        lastDate.getFullYear() === now.getFullYear()
-      ) {
-        return; // Already shown today
+      const lastTime = new Date(lastGreeting);
+      const hoursSince = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSince < GREETING_COOLDOWN_HOURS) {
+        return; // Too soon since last greeting
       }
     }
 
-    // Show greeting
+    // Show greeting based on time of day
     const userName = userProfile.name || 'there';
     const aiName = userProfile.aiName || 'AURRA';
-    const greeting = getMorningGreeting(userName, aiName);
+    const greeting = getTimeBasedGreeting(userName, aiName);
     
     setGreetingText(greeting);
     setShowGreeting(true);
-    localStorage.setItem(MORNING_GREETING_KEY, now.toISOString());
+    localStorage.setItem(GREETING_KEY, now.toISOString());
+
     
     // Auto-play voice after a short delay
     setTimeout(() => {
