@@ -23,7 +23,8 @@ import {
   Sunset,
   Bot,
   Edit3,
-  Crown
+  Crown,
+  MessageCircle
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,9 @@ import { UpgradeSheet } from '@/components/UpgradeSheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useMorningBriefing } from '@/hooks/useMorningBriefing';
+import { getGreetingFrequency, setGreetingFrequency, GreetingFrequency } from '@/components/MorningGreeting';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 export const SettingsScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -90,6 +94,30 @@ export const SettingsScreen: React.FC = () => {
 
   // Push notification state
   const [pushEnabled, setPushEnabled] = useState(false);
+  
+  // Greeting frequency state
+  const [greetingFreq, setGreetingFreq] = useState<GreetingFrequency>(getGreetingFrequency());
+  const [greetingDialogOpen, setGreetingDialogOpen] = useState(false);
+  
+  const handleGreetingFrequencyChange = (value: GreetingFrequency) => {
+    setGreetingFreq(value);
+    setGreetingFrequency(value);
+    setGreetingDialogOpen(false);
+    toast({
+      title: 'Greeting Frequency Updated',
+      description: value === 'off' ? 'Voice greetings disabled' : 
+                   value === 'daily' ? 'I\'ll greet you once a day' : 
+                   'I\'ll greet you every few hours',
+    });
+  };
+  
+  const getGreetingFreqLabel = () => {
+    switch (greetingFreq) {
+      case 'every4h': return 'Every 4 hours';
+      case 'daily': return 'Once daily';
+      case 'off': return 'Off';
+    }
+  };
 
   useEffect(() => {
     checkSubscription().then(setPushEnabled);
@@ -251,6 +279,13 @@ export const SettingsScreen: React.FC = () => {
     {
       title: 'VOICE',
       items: [
+        {
+          icon: MessageCircle,
+          label: 'Voice Greetings',
+          description: getGreetingFreqLabel(),
+          isGreetingSettings: true,
+          action: <ChevronRight className="w-5 h-5 text-muted-foreground" />,
+        },
         {
           icon: Volume2,
           label: 'Voice Settings',
@@ -494,6 +529,50 @@ export const SettingsScreen: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Greeting Frequency Dialog */}
+      <Dialog open={greetingDialogOpen} onOpenChange={setGreetingDialogOpen}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Voice Greetings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              How often should I greet you with a voice message?
+            </p>
+            
+            <RadioGroup 
+              value={greetingFreq} 
+              onValueChange={(value) => handleGreetingFrequencyChange(value as GreetingFrequency)}
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-3 p-3 rounded-xl border border-border hover:border-primary/50 transition-colors">
+                <RadioGroupItem value="every4h" id="freq-every4h" />
+                <Label htmlFor="freq-every4h" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium">Every 4 hours</span>
+                  <p className="text-xs text-muted-foreground">I'll greet you throughout the day</p>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-3 p-3 rounded-xl border border-border hover:border-primary/50 transition-colors">
+                <RadioGroupItem value="daily" id="freq-daily" />
+                <Label htmlFor="freq-daily" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium">Once daily</span>
+                  <p className="text-xs text-muted-foreground">Just one greeting per day</p>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-3 p-3 rounded-xl border border-border hover:border-primary/50 transition-colors">
+                <RadioGroupItem value="off" id="freq-off" />
+                <Label htmlFor="freq-off" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium">Off</span>
+                  <p className="text-xs text-muted-foreground">No voice greetings</p>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold aura-gradient-text">Settings</h1>
@@ -590,6 +669,30 @@ export const SettingsScreen: React.FC = () => {
                       <button
                         key={item.label}
                         onClick={() => setScheduleDialogOpen(true)}
+                        className={cn(
+                          'flex items-center gap-4 w-full p-4 text-left -mx-4',
+                          'hover:bg-muted/50 transition-colors',
+                          index !== (section.items?.length ?? 0) - 1 && 'border-b border-border/50'
+                        )}
+                      >
+                        <div className="p-2 rounded-lg bg-muted text-foreground">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                        </div>
+                        {item.action}
+                      </button>
+                    );
+                  }
+                  
+                  // Greeting frequency settings
+                  if (item.isGreetingSettings) {
+                    return (
+                      <button
+                        key={item.label}
+                        onClick={() => setGreetingDialogOpen(true)}
                         className={cn(
                           'flex items-center gap-4 w-full p-4 text-left -mx-4',
                           'hover:bg-muted/50 transition-colors',
