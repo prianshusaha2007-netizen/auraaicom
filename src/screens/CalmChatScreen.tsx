@@ -13,6 +13,7 @@ import { CodingMentorBanner, CodingMentorMode } from '@/components/CodingMentorM
 import { RoutineVisualCard, RoutineVisualButton } from '@/components/RoutineVisualCard';
 import { RoutineWidget } from '@/components/RoutineWidget';
 import { SkillsWidget } from '@/components/SkillsWidget';
+import { SkillSessionTimer } from '@/components/SkillSessionTimer';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -94,7 +95,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const { analyzeFile, generateImage, createDocument, downloadDocument, downloadImage, isUploading, isGenerating, isCreatingDoc } = useMediaActions();
   const { showReflectionPrompt, lastWeekStats, saveReflection, dismissReflection } = useWeeklyReflection();
   const { activeBlock, blocks } = useRoutineBlocks();
-  const { hasActiveSkills, getActiveSkills } = useSkillsProgress();
+  const { hasActiveSkills, getActiveSkills, currentSession } = useSkillsProgress();
   const { 
     routineVisual, 
     isGenerating: isGeneratingVisual, 
@@ -514,8 +515,15 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         )}
       </AnimatePresence>
 
+      {/* Skill Session Timer - shows during active sessions */}
+      <AnimatePresence>
+        {currentSession && (
+          <SkillSessionTimer compact={chatMessages.length > 1} />
+        )}
+      </AnimatePresence>
+
       {/* Routine Widget - shows when not in morning flow and has blocks */}
-      {!showMorningFlow && chatMessages.length <= 1 && (
+      {!showMorningFlow && chatMessages.length <= 1 && !currentSession && (
         <div className="px-4 pb-2 space-y-2">
           <RoutineWidget 
             onViewVisual={openVisual}
