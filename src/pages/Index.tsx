@@ -43,8 +43,10 @@ import { PageTransition } from '@/components/PageTransition';
 import { ContinuousVoiceMode } from '@/components/ContinuousVoiceMode';
 import { PermissionsOnboardingModal } from '@/components/PermissionsOnboardingModal';
 import { MorningGreeting } from '@/components/MorningGreeting';
+import { MorningMoodCheck, useShouldShowMoodCheck } from '@/components/MorningMoodCheck';
 import { useReminders } from '@/hooks/useReminders';
 import { useMorningBriefing } from '@/hooks/useMorningBriefing';
+import { useSmartRoutine } from '@/hooks/useSmartRoutine';
 
 const AppContent: React.FC = () => {
   const { userProfile, isLoading, clearChatHistory } = useAura();
@@ -57,6 +59,17 @@ const AppContent: React.FC = () => {
   });
   
   const { reminders, activeReminder, snoozeReminder, completeReminder, dismissActiveReminder } = useReminders();
+  const { shouldShow: showMorningMood, dismiss: dismissMorningMood } = useShouldShowMoodCheck();
+  const { setMood } = useSmartRoutine();
+  const [morningMoodVisible, setMorningMoodVisible] = useState(false);
+  
+  // Show morning mood check after a short delay
+  useEffect(() => {
+    if (showMorningMood) {
+      const timer = setTimeout(() => setMorningMoodVisible(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showMorningMood]);
   
   // Count upcoming reminders (scheduled and active)
   const upcomingRemindersCount = reminders.filter(r => 
@@ -141,11 +154,27 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleMorningMoodComplete = (mood: 'low' | 'normal' | 'high') => {
+    setMood(mood);
+    dismissMorningMood();
+    setMorningMoodVisible(false);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <MorningGreeting />
       <DailyMoodPopup userName={userProfile.name} />
       <PermissionsOnboardingModal />
+      
+      {/* Morning Mood Check Popup */}
+      {morningMoodVisible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <MorningMoodCheck 
+            userName={userProfile.name}
+            onComplete={handleMorningMoodComplete}
+          />
+        </div>
+      )}
 
       <ContinuousVoiceMode
         isOpen={voiceModeOpen}
