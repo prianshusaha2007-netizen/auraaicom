@@ -24,6 +24,7 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { useWelcomeBack, updateLastActive } from '@/hooks/useWelcomeBack';
 import { usePersonaContext } from '@/contexts/PersonaContext';
 import { useCredits } from '@/hooks/useCredits';
+import { useVoicePlayback } from '@/hooks/useVoicePlayback';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +55,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   });
   const { speak, isSpeaking: isVoiceFeedbackSpeaking } = useVoiceFeedback();
   const { shouldShowWelcomeBack, getWelcomeMessage } = useWelcomeBack();
+  const { playText, stopPlayback, isPlaying } = useVoicePlayback();
   
   const [inputValue, setInputValue] = useState('');
   const [showAutomation, setShowAutomation] = useState(false);
@@ -457,48 +459,15 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
   };
 
   const handleSpeakMessage = async (text: string) => {
-    if (isSpeaking) {
-      audioRef.current?.pause();
+    if (isPlaying()) {
+      stopPlayback();
       setIsSpeaking(false);
       return;
     }
 
-    try {
-      setIsSpeaking(true);
-      // Try ElevenLabs first, fallback to OpenAI
-      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
-        body: { text }
-      });
-
-      if (error) throw error;
-
-      if (data?.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-        audioRef.current = audio;
-        audio.onended = () => setIsSpeaking(false);
-        await audio.play();
-      } else if (data?.requiresSetup) {
-        toast.info('Voice requires API setup');
-        setIsSpeaking(false);
-      }
-    } catch (error) {
-      console.error('TTS error:', error);
-      // Fallback to original text-to-voice
-      try {
-        const { data } = await supabase.functions.invoke('text-to-voice', {
-          body: { text, voice: 'nova' }
-        });
-        if (data?.audioContent) {
-          const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-          audioRef.current = audio;
-          audio.onended = () => setIsSpeaking(false);
-          await audio.play();
-        }
-      } catch {
-        toast.error('Voice playback failed');
-        setIsSpeaking(false);
-      }
-    }
+    setIsSpeaking(true);
+    await playText(text, userProfile.aurraGender || 'neutral');
+    setIsSpeaking(false);
   };
 
   const handleQuickAction = (actionId: string, message: string) => {
