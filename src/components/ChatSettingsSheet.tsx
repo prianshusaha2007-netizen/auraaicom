@@ -12,9 +12,9 @@ import {
   GraduationCap, 
   Brain, 
   Sparkles,
-  Users,
   CheckSquare,
-  Star
+  Star,
+  Volume2
 } from 'lucide-react';
 
 interface ChatSettingsSheetProps {
@@ -71,10 +71,11 @@ const RELATIONSHIP_OPTIONS: {
 const GENDER_OPTIONS: {
   id: AurraGender;
   label: string;
+  voiceHint: string;
 }[] = [
-  { id: 'neutral', label: 'Neutral' },
-  { id: 'feminine', label: 'Feminine' },
-  { id: 'masculine', label: 'Masculine' },
+  { id: 'neutral', label: 'Neutral', voiceHint: 'River (calm)' },
+  { id: 'feminine', label: 'Feminine', voiceHint: 'Sarah (warm)' },
+  { id: 'masculine', label: 'Masculine', voiceHint: 'George (steady)' },
 ];
 
 const RESPONSE_STYLES = [
@@ -92,14 +93,19 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
   );
   const [customName, setCustomName] = useState(userProfile.aiName || 'AURRA');
   
-  // Relationship style (new)
+  // Relationship style
   const [relationshipStyle, setRelationshipStyle] = useState<RelationshipStyle>(
     userProfile.relationshipStyle || 'best_friend'
   );
   
-  // AURRA gender (new)
+  // AURRA gender
   const [aurraGender, setAurraGender] = useState<AurraGender>(
     userProfile.aurraGender || 'neutral'
+  );
+  
+  // Auto-play voice
+  const [autoPlayVoice, setAutoPlayVoice] = useState(
+    userProfile.autoPlayVoice || false
   );
   
   // Response style
@@ -127,6 +133,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
       aiName,
       relationshipStyle,
       aurraGender,
+      autoPlayVoice,
       responseStyle,
       askBeforeJoking,
       memoryPermissions,
@@ -137,11 +144,12 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
     localStorage.setItem('aurra-chat-settings', JSON.stringify({
       relationshipStyle,
       aurraGender,
+      autoPlayVoice,
       responseStyle,
       askBeforeJoking,
       memoryPermissions,
     }));
-  }, [useCustomName, customName, relationshipStyle, aurraGender, responseStyle, askBeforeJoking, memoryPermissions]);
+  }, [useCustomName, customName, relationshipStyle, aurraGender, autoPlayVoice, responseStyle, askBeforeJoking, memoryPermissions]);
 
   const handleCustomNameChange = (name: string) => {
     if (name.length <= 15) {
@@ -224,46 +232,66 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
             </p>
           </div>
 
-          {/* Section 2: AURRA's Gender */}
+          {/* Section 2: AURRA's Gender & Voice */}
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold">How would you like me to sound?</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                This only affects voice, wording, and emotional tone — not intelligence.
+                This affects voice, wording, and emotional tone — not intelligence.
               </p>
             </div>
             
             <RadioGroup 
               value={aurraGender} 
               onValueChange={(v) => setAurraGender(v as AurraGender)}
-              className="flex gap-2"
+              className="space-y-2"
             >
               {GENDER_OPTIONS.map((option) => (
                 <label
                   key={option.id}
                   htmlFor={`gender-${option.id}`}
                   className={cn(
-                    "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all text-sm",
+                    "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
                     aurraGender === option.id
-                      ? "border-primary bg-primary/5 font-medium"
+                      ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   )}
                 >
                   <RadioGroupItem value={option.id} id={`gender-${option.id}`} className="sr-only" />
-                  {option.label}
-                  {option.id === 'neutral' && aurraGender !== option.id && (
-                    <span className="text-[10px] text-muted-foreground">(default)</span>
-                  )}
+                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-xs text-muted-foreground">Voice: {option.voiceHint}</span>
                 </label>
               ))}
             </RadioGroup>
-            
-            <p className="text-xs text-muted-foreground/70 italic">
-              You can change this anytime.
-            </p>
           </div>
 
-          {/* Section 3: AI Name */}
+          {/* Section 3: Auto-Play Voice */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Volume2 className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Auto-play voice responses</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Hear my responses as audio automatically
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={autoPlayVoice}
+                onCheckedChange={setAutoPlayVoice}
+              />
+            </div>
+            {autoPlayVoice && (
+              <p className="text-xs text-muted-foreground/70 italic px-1">
+                Voice will match your selected gender preference above.
+              </p>
+            )}
+          </div>
+
+          {/* Section 4: AI Name */}
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold">What should I call myself?</h3>
@@ -307,7 +335,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
             </p>
           </div>
 
-          {/* Section 4: Response Style */}
+          {/* Section 5: Response Style */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Response style</h3>
             
@@ -327,7 +355,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
             </RadioGroup>
           </div>
 
-          {/* Section 5: Humor Toggle */}
+          {/* Section 6: Humor Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -346,7 +374,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
             </p>
           </div>
 
-          {/* Section 6: Memory Permissions */}
+          {/* Section 7: Memory Permissions */}
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold">What should I remember?</h3>
