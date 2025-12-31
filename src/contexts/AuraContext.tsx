@@ -9,6 +9,9 @@ export interface MemoryPermissions {
   emotional: boolean;
 }
 
+export type RelationshipStyle = 'best_friend' | 'companion' | 'thinking_partner' | 'mentor' | 'assistant';
+export type AurraGender = 'neutral' | 'feminine' | 'masculine';
+
 export interface UserProfile {
   name: string;
   age: string;
@@ -28,6 +31,8 @@ export interface UserProfile {
   askBeforeJoking: boolean;
   memoryPermissions: MemoryPermissions;
   birthday: string; // Format: YYYY-MM-DD
+  relationshipStyle: RelationshipStyle; // How AURRA shows up for user
+  aurraGender: AurraGender; // Voice/wording tone preference
 }
 
 export interface Memory {
@@ -108,6 +113,8 @@ const defaultUserProfile: UserProfile = {
     emotional: true,
   },
   birthday: '',
+  relationshipStyle: 'best_friend',
+  aurraGender: 'neutral',
 };
 
 const AuraContext = createContext<AuraContextType | undefined>(undefined);
@@ -159,6 +166,8 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             responseStyle: 'balanced',
             askBeforeJoking: true,
             memoryPermissions: { goals: true, preferences: true, emotional: true },
+            relationshipStyle: 'best_friend' as const,
+            aurraGender: 'neutral' as const,
           };
           if (storedChatSettings) {
             try {
@@ -185,6 +194,8 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             askBeforeJoking: chatSettings.askBeforeJoking,
             memoryPermissions: chatSettings.memoryPermissions,
             birthday: (profile as any).birthday || '',
+            relationshipStyle: chatSettings.relationshipStyle || 'best_friend',
+            aurraGender: chatSettings.aurraGender || 'neutral',
           });
         } else {
           setUserProfile(defaultUserProfile);
