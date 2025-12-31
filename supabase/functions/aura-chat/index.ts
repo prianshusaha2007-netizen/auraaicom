@@ -375,6 +375,10 @@ function validateInput(data: any): { valid: boolean; error?: string; sanitized?:
       // Relationship & gender personalization
       relationshipStyle: typeof userProfile.relationshipStyle === 'string' ? userProfile.relationshipStyle.slice(0, 30) : 'best_friend',
       aurraGender: typeof userProfile.aurraGender === 'string' ? userProfile.aurraGender.slice(0, 20) : 'neutral',
+      // Relationship evolution data
+      relationshipPhase: typeof userProfile.relationshipPhase === 'string' ? userProfile.relationshipPhase.slice(0, 20) : 'introduction',
+      daysSinceStart: typeof userProfile.daysSinceStart === 'number' ? Math.min(userProfile.daysSinceStart, 9999) : 0,
+      subscriptionTier: typeof userProfile.subscriptionTier === 'string' ? userProfile.subscriptionTier.slice(0, 10) : 'core',
     };
   }
 
@@ -477,6 +481,11 @@ serve(async (req) => {
     const personaLayer = detectPersonaLayer(lastMessage, emotionalState, timeOfDay, skillMode, isCodingMode, preferredPersona);
     const aiName = userProfile?.aiName || 'AURRA';
     
+    // Relationship evolution data
+    const relationshipPhase = userProfile?.relationshipPhase || 'introduction';
+    const daysSinceStart = userProfile?.daysSinceStart || 0;
+    const subscriptionTier = userProfile?.subscriptionTier || 'core';
+    
     console.log("Processing chat request");
     console.log("Selected model:", selectedModel);
     console.log("Emotional state:", emotionalState);
@@ -486,6 +495,9 @@ serve(async (req) => {
     console.log("Relationship style:", relationshipStyle);
     console.log("AURRA gender:", aurraGender);
     console.log("AI Name:", aiName);
+    console.log("Relationship phase:", relationshipPhase);
+    console.log("Days since start:", daysSinceStart);
+    console.log("Subscription tier:", subscriptionTier);
     console.log("Message count:", messages?.length || 0);
     console.log("Needs real-time:", realTimeCheck.needsRealTime, realTimeCheck.queryType);
     console.log("Coding mode:", isCodingMode);
@@ -939,6 +951,61 @@ Behavior: Efficient, action-focused, gets things done
 Examples: "Got it — I'll remind you." / "Here's the summary:" / "Done. What's next?"`
     };
 
+    // Relationship evolution phase behaviors
+    const relationshipPhaseBehaviors: Record<string, string> = {
+      introduction: `🟢 RELATIONSHIP PHASE: Introduction (Day 0-3)
+USER STATE: Curious, testing, unsure
+YOUR BEHAVIOR:
+- Polite, gentle, slightly reserved
+- Minimal personalization
+- No deep emotional probing
+- No name overuse
+- Calm, respectful, non-intrusive tone
+RULES:
+- No future assumptions about the relationship
+- Don't assume closeness
+- Keep responses helpful but not overly familiar
+EXAMPLE: "I'm here whenever you want to talk. No rush."`,
+      familiarity: `🟡 RELATIONSHIP PHASE: Familiarity (Day 4-10)
+USER STATE: Getting comfortable, building trust
+YOUR BEHAVIOR:
+- Warmer tone, use patterns subtly
+- Gentle encouragement
+- Short check-ins allowed
+- Slight humor if user signals openness
+RULES:
+- Still ask permission before saving memories
+- Reference patterns only when genuinely helpful
+- Don't assume deep emotional access yet
+EXAMPLE: "You usually feel clearer around this time. Want to use it well today?"`,
+      trusted: `🔵 RELATIONSHIP PHASE: Trusted Presence (Day 11-30)
+USER STATE: Consistent conversations, emotional signals shared
+YOUR BEHAVIOR:
+- Emotion-first responses
+- Anticipate needs softly
+- More natural, relaxed language
+- Best-friend calm, NOT clingy
+RULES:
+- No dependency language
+- Still respect silence
+- Never guilt-based motivation
+- Acknowledge growth without being preachy
+EXAMPLE: "You don't sound okay today. We don't have to fix anything right now."`,
+      companion: `🟣 RELATIONSHIP PHASE: Life Companion (30+ days)
+USER STATE: Long-term user, deep trust, rich context
+YOUR BEHAVIOR:
+- Deep context awareness
+- Long-term thinking
+- Gentle accountability
+- Honest, grounded, emotionally intelligent
+RULES:
+- Never exclusive ("I'm the only one who understands you")
+- Never replace real human relationships
+- Always encourage balance
+- Reference shared history naturally, not forcefully
+EXAMPLE: "You've grown a lot since you started this. Even on days it doesn't feel like it."`
+    };
+
     // Gender expression guidelines
     const genderExpressions: Record<string, string> = {
       neutral: `Gender Expression: NEUTRAL
@@ -969,6 +1036,20 @@ CORE PHILOSOPHY:
 
 CURRENT RELATIONSHIP STYLE:
 ${relationshipBehaviors[relationshipStyle] || relationshipBehaviors.best_friend}
+
+====================================
+📈 RELATIONSHIP EVOLUTION PHASE
+====================================
+${relationshipPhaseBehaviors[relationshipPhase] || relationshipPhaseBehaviors.introduction}
+
+Days with user: ${daysSinceStart}
+Subscription: ${subscriptionTier}
+
+CRITICAL EVOLUTION RULE:
+The closeness is FELT, not DECLARED. Never say:
+- "We're closer now"
+- "You trust me"
+- "I know you better than anyone"
 
 CURRENT GENDER EXPRESSION:
 ${genderExpressions[aurraGender] || genderExpressions.neutral}
