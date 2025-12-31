@@ -226,6 +226,8 @@ export const useAuraChat = () => {
             preferredPersona: userProfile.preferredPersona || 'companion',
             responseStyle: userProfile.responseStyle || 'balanced',
             askBeforeJoking: userProfile.askBeforeJoking !== false,
+            relationshipStyle: userProfile.relationshipStyle || 'best_friend',
+            aurraGender: userProfile.aurraGender || 'neutral',
           },
         }),
       });

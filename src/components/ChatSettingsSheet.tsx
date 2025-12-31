@@ -5,51 +5,76 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useAura } from '@/contexts/AuraContext';
+import { useAura, RelationshipStyle, AurraGender } from '@/contexts/AuraContext';
 import { cn } from '@/lib/utils';
-import { Heart, GraduationCap, Brain, Palette, Dumbbell, Sparkles } from 'lucide-react';
+import { 
+  Heart, 
+  GraduationCap, 
+  Brain, 
+  Sparkles,
+  Users,
+  CheckSquare,
+  Star
+} from 'lucide-react';
 
 interface ChatSettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const PERSONA_OPTIONS = [
+const RELATIONSHIP_OPTIONS: {
+  id: RelationshipStyle;
+  icon: typeof Heart;
+  label: string;
+  description: string;
+  color: string;
+  recommended?: boolean;
+}[] = [
+  { 
+    id: 'best_friend', 
+    icon: Star, 
+    label: 'Best Friend', 
+    description: 'Supportive, honest, and always on your side.',
+    color: 'text-yellow-500',
+    recommended: true
+  },
   { 
     id: 'companion', 
     icon: Heart, 
     label: 'Companion', 
-    description: 'calm, supportive, presence-first',
+    description: 'For when you just want someone there.',
     color: 'text-pink-500'
+  },
+  { 
+    id: 'thinking_partner', 
+    icon: Brain, 
+    label: 'Thinking Partner', 
+    description: 'For planning, decisions, and clarity.',
+    color: 'text-purple-500'
   },
   { 
     id: 'mentor', 
     icon: GraduationCap, 
     label: 'Mentor', 
-    description: 'learning, skills, improvement',
+    description: 'For learning and self-improvement.',
     color: 'text-blue-500'
   },
   { 
-    id: 'thinking-partner', 
-    icon: Brain, 
-    label: 'Thinking Partner', 
-    description: 'planning, clarity, decisions',
-    color: 'text-purple-500'
-  },
-  { 
-    id: 'creative', 
-    icon: Palette, 
-    label: 'Creative Partner', 
-    description: 'ideas, design, expression',
-    color: 'text-orange-500'
-  },
-  { 
-    id: 'coach', 
-    icon: Dumbbell, 
-    label: 'Coach', 
-    description: 'habits, gym, discipline',
+    id: 'assistant', 
+    icon: CheckSquare, 
+    label: 'Personal Assistant', 
+    description: 'For getting things done efficiently.',
     color: 'text-green-500'
   },
+];
+
+const GENDER_OPTIONS: {
+  id: AurraGender;
+  label: string;
+}[] = [
+  { id: 'neutral', label: 'Neutral' },
+  { id: 'feminine', label: 'Feminine' },
+  { id: 'masculine', label: 'Masculine' },
 ];
 
 const RESPONSE_STYLES = [
@@ -67,9 +92,14 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
   );
   const [customName, setCustomName] = useState(userProfile.aiName || 'AURRA');
   
-  // Persona preference
-  const [preferredPersona, setPreferredPersona] = useState(
-    userProfile.preferredPersona || 'companion'
+  // Relationship style (new)
+  const [relationshipStyle, setRelationshipStyle] = useState<RelationshipStyle>(
+    userProfile.relationshipStyle || 'best_friend'
+  );
+  
+  // AURRA gender (new)
+  const [aurraGender, setAurraGender] = useState<AurraGender>(
+    userProfile.aurraGender || 'neutral'
   );
   
   // Response style
@@ -79,7 +109,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
   
   // Humor toggle
   const [askBeforeJoking, setAskBeforeJoking] = useState(
-    userProfile.askBeforeJoking !== false // Default true
+    userProfile.askBeforeJoking !== false
   );
   
   // Memory permissions
@@ -95,7 +125,8 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
     
     updateUserProfile({
       aiName,
-      preferredPersona,
+      relationshipStyle,
+      aurraGender,
       responseStyle,
       askBeforeJoking,
       memoryPermissions,
@@ -104,15 +135,15 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
     // Also persist to localStorage for immediate access
     localStorage.setItem('aurra-ai-name', aiName);
     localStorage.setItem('aurra-chat-settings', JSON.stringify({
-      preferredPersona,
+      relationshipStyle,
+      aurraGender,
       responseStyle,
       askBeforeJoking,
       memoryPermissions,
     }));
-  }, [useCustomName, customName, preferredPersona, responseStyle, askBeforeJoking, memoryPermissions]);
+  }, [useCustomName, customName, relationshipStyle, aurraGender, responseStyle, askBeforeJoking, memoryPermissions]);
 
   const handleCustomNameChange = (name: string) => {
-    // Max 15 characters
     if (name.length <= 15) {
       setCustomName(name);
     }
@@ -133,17 +164,111 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            Personality & Presence
+            Relationship & Presence
           </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-8 pb-8">
-          {/* Section 1: AI Name */}
+          {/* Section 1: Relationship Style (Main Feature) */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">How do you want me to show up for you?</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                This doesn't change who I am — it just shapes how I talk and support you.
+              </p>
+            </div>
+            
+            <RadioGroup 
+              value={relationshipStyle} 
+              onValueChange={(v) => setRelationshipStyle(v as RelationshipStyle)}
+              className="space-y-2"
+            >
+              {RELATIONSHIP_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <label
+                    key={option.id}
+                    htmlFor={`relationship-${option.id}`}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+                      relationshipStyle === option.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <RadioGroupItem value={option.id} id={`relationship-${option.id}`} className="sr-only" />
+                    <div className={cn("p-2 rounded-lg bg-muted", option.color)}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {option.label}
+                        {option.recommended && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                            Recommended
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{option.description}</p>
+                    </div>
+                    {relationshipStyle === option.id && (
+                      <div className="w-2 h-2 rounded-full bg-primary" />
+                    )}
+                  </label>
+                );
+              })}
+            </RadioGroup>
+            
+            <p className="text-xs text-muted-foreground/70 italic">
+              You can change this anytime. I'll still adapt naturally.
+            </p>
+          </div>
+
+          {/* Section 2: AURRA's Gender */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">How would you like me to sound?</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                This only affects voice, wording, and emotional tone — not intelligence.
+              </p>
+            </div>
+            
+            <RadioGroup 
+              value={aurraGender} 
+              onValueChange={(v) => setAurraGender(v as AurraGender)}
+              className="flex gap-2"
+            >
+              {GENDER_OPTIONS.map((option) => (
+                <label
+                  key={option.id}
+                  htmlFor={`gender-${option.id}`}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all text-sm",
+                    aurraGender === option.id
+                      ? "border-primary bg-primary/5 font-medium"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <RadioGroupItem value={option.id} id={`gender-${option.id}`} className="sr-only" />
+                  {option.label}
+                  {option.id === 'neutral' && aurraGender !== option.id && (
+                    <span className="text-[10px] text-muted-foreground">(default)</span>
+                  )}
+                </label>
+              ))}
+            </RadioGroup>
+            
+            <p className="text-xs text-muted-foreground/70 italic">
+              You can change this anytime.
+            </p>
+          </div>
+
+          {/* Section 3: AI Name */}
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold">What should I call myself?</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Giving me a name can make our conversations feel more personal. This is completely optional.
+                Giving me a name can make our conversations feel more personal.
               </p>
             </div>
             
@@ -177,60 +302,12 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
               </div>
             </RadioGroup>
             
-            <p className="text-xs text-muted-foreground italic">
+            <p className="text-xs text-muted-foreground/70 italic">
               I'll use this name gently — only in emotional or reassuring moments.
             </p>
           </div>
 
-          {/* Section 2: Preferred Persona */}
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold">How would you like me to show up for you?</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                I'll still adapt automatically. This just helps me understand what you usually prefer.
-              </p>
-            </div>
-            
-            <RadioGroup 
-              value={preferredPersona} 
-              onValueChange={setPreferredPersona}
-              className="space-y-2"
-            >
-              {PERSONA_OPTIONS.map((persona) => {
-                const Icon = persona.icon;
-                return (
-                  <label
-                    key={persona.id}
-                    htmlFor={`persona-${persona.id}`}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-                      preferredPersona === persona.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    )}
-                  >
-                    <RadioGroupItem value={persona.id} id={`persona-${persona.id}`} className="sr-only" />
-                    <div className={cn("p-2 rounded-lg bg-muted", persona.color)}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{persona.label}</p>
-                      <p className="text-xs text-muted-foreground">{persona.description}</p>
-                    </div>
-                    {preferredPersona === persona.id && (
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                    )}
-                  </label>
-                );
-              })}
-            </RadioGroup>
-            
-            <p className="text-xs text-muted-foreground italic">
-              You don't need to change this often. I'll adapt as needed.
-            </p>
-          </div>
-
-          {/* Section 3: Response Style */}
+          {/* Section 4: Response Style */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Response style</h3>
             
@@ -248,13 +325,9 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
                 </div>
               ))}
             </RadioGroup>
-            
-            <p className="text-xs text-muted-foreground italic">
-              I'll still keep things simple unless you ask for depth.
-            </p>
           </div>
 
-          {/* Section 4: Humor Toggle */}
+          {/* Section 5: Humor Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -273,7 +346,7 @@ export const ChatSettingsSheet: React.FC<ChatSettingsSheetProps> = ({ open, onOp
             </p>
           </div>
 
-          {/* Section 5: Memory Permissions */}
+          {/* Section 6: Memory Permissions */}
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold">What should I remember?</h3>
