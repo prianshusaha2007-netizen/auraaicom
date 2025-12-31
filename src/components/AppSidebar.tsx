@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   MessageSquare, 
   History, 
@@ -17,13 +17,16 @@ import {
   MapPin,
   Target,
   BookHeart,
-  Heart
+  Heart,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AuraOrb } from '@/components/AuraOrb';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export type TabId = 
   | 'chat' 
@@ -45,7 +48,8 @@ export type TabId =
   | 'progress'
   | 'reminders'
   | 'services'
-  | 'daily-plan';
+  | 'daily-plan'
+  | 'subscription';
 
 interface MenuItem {
   id: TabId | 'new-chat';
@@ -74,6 +78,7 @@ const menuItems: MenuItem[] = [
   { id: 'image-analysis', icon: Image, label: 'Image Analysis' },
   { id: 'gallery', icon: ImageIcon, label: 'Image Gallery', divider: true },
   { id: 'settings', icon: Settings, label: 'Settings' },
+  { id: 'subscription' as TabId, icon: CreditCard, label: 'Subscription' },
 ];
 
 interface AppSidebarProps {
@@ -91,6 +96,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onTabChange,
   onNewChat,
 }) => {
+  const [isFreePlan, setIsFreePlan] = useState(true);
+
+  useEffect(() => {
+    const checkSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('tier, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      setIsFreePlan(!subscription || subscription.tier === 'core');
+    };
+
+    checkSubscription();
+  }, []);
+
   const handleItemClick = (item: MenuItem) => {
     if (item.action && item.id === 'new-chat') {
       onNewChat();
@@ -159,12 +184,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       item.action && 'text-primary'
                     )} />
                     <span className={cn(
-                      'font-medium text-sm',
+                      'font-medium text-sm flex-1',
                       isActive ? 'text-primary' : 'text-foreground',
                       item.action && 'text-primary'
                     )}>
                       {item.label}
                     </span>
+                    {item.id === 'subscription' && isFreePlan && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground font-medium">
+                        Free Plan
+                      </Badge>
+                    )}
                   </button>
                   {showDivider && (
                     <div className="my-2 mx-4 border-t border-border/50" />
