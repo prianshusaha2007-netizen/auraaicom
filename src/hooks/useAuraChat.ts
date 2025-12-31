@@ -7,6 +7,7 @@ import { useStorytellingMode } from './useStorytellingMode';
 import { useMoodCheckIn } from './useMoodCheckIn';
 import { useLifeMemoryGraph } from './useLifeMemoryGraph';
 import { useMemoryPersistence } from './useMemoryPersistence';
+import { useVoicePlayback } from './useVoicePlayback';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
@@ -48,6 +49,7 @@ export const useAuraChat = () => {
     confirmPendingMemory,
     dismissPendingMemory,
   } = useMemoryPersistence();
+  const { playText } = useVoicePlayback();
   
   const messageCountRef = useRef(0);
 
@@ -288,6 +290,14 @@ export const useAuraChat = () => {
         addChatMessage({ content: assistantContent, sender: 'aura' });
       }
 
+      // Auto-play voice if enabled
+      if (userProfile.autoPlayVoice && assistantContent) {
+        // Use a short delay to let the UI settle
+        setTimeout(() => {
+          playText(assistantContent, userProfile.aurraGender);
+        }, 300);
+      }
+
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
@@ -308,7 +318,7 @@ export const useAuraChat = () => {
     } finally {
       setIsThinking(false);
     }
-  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage, getMemoryContext, checkSummarization]);
+  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage, getMemoryContext, checkSummarization, playText]);
 
   // Helper function for streaming story responses
   const streamStoryResponse = async (conversationHistory: Message[], preferredModel?: string) => {

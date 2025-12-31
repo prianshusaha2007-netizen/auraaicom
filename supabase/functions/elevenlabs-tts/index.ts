@@ -6,8 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// AURA voice - using Sarah (warm, friendly female voice)
-const AURA_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL';
+// Gender-based voice mapping
+const VOICE_MAP: Record<string, string> = {
+  neutral: 'SAz9YHcvj6GT2YYXdXww',   // River - calm, balanced
+  feminine: 'EXAVITQu4vr4xnSDxMaL',  // Sarah - warm, friendly
+  masculine: 'JBFqnCBsd6RMkjVDRZzb', // George - steady, grounded
+};
+
+// Default fallback voice
+const DEFAULT_VOICE_ID = 'SAz9YHcvj6GT2YYXdXww'; // River
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -93,10 +100,11 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating speech with ElevenLabs, voice:', voiceId || AURA_VOICE_ID);
+    const selectedVoice = voiceId || DEFAULT_VOICE_ID;
+    console.log('Generating speech with ElevenLabs, voice:', selectedVoice);
 
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || AURA_VOICE_ID}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}`,
       {
         method: 'POST',
         headers: {

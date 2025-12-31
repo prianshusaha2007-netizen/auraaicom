@@ -33,6 +33,7 @@ export interface UserProfile {
   birthday: string; // Format: YYYY-MM-DD
   relationshipStyle: RelationshipStyle; // How AURRA shows up for user
   aurraGender: AurraGender; // Voice/wording tone preference
+  autoPlayVoice: boolean; // Auto-play AURRA responses as audio
 }
 
 export interface Memory {
@@ -115,6 +116,7 @@ const defaultUserProfile: UserProfile = {
   birthday: '',
   relationshipStyle: 'best_friend',
   aurraGender: 'neutral',
+  autoPlayVoice: false,
 };
 
 const AuraContext = createContext<AuraContextType | undefined>(undefined);
@@ -168,6 +170,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             memoryPermissions: { goals: true, preferences: true, emotional: true },
             relationshipStyle: 'best_friend' as const,
             aurraGender: 'neutral' as const,
+            autoPlayVoice: false,
           };
           if (storedChatSettings) {
             try {
@@ -196,6 +199,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             birthday: (profile as any).birthday || '',
             relationshipStyle: chatSettings.relationshipStyle || 'best_friend',
             aurraGender: chatSettings.aurraGender || 'neutral',
+            autoPlayVoice: chatSettings.autoPlayVoice || false,
           });
         } else {
           setUserProfile(defaultUserProfile);
