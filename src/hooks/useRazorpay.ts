@@ -62,7 +62,7 @@ export const useRazorpay = () => {
     script.onload = () => setIsScriptLoaded(true);
     script.onerror = () => {
       console.error('Failed to load Razorpay script');
-      toast.error('Payment gateway unavailable');
+      toast.error('Payment gateway unavailable. Please check your internet connection and try again.');
     };
     document.body.appendChild(script);
 
@@ -97,7 +97,8 @@ export const useRazorpay = () => {
 
       if (orderError || !orderData) {
         console.error('Order creation error:', orderError);
-        toast.error('Failed to create payment order');
+        const errorMessage = orderData?.error || orderError?.message || 'Something went wrong';
+        toast.error(`Payment failed: ${errorMessage}. Please try again or contact support.`);
         return false;
       }
 
@@ -127,7 +128,7 @@ export const useRazorpay = () => {
 
               if (verifyError || !verifyData?.success) {
                 console.error('Verification error:', verifyError);
-                toast.error('Payment verification failed. Please contact support.');
+                toast.error('Payment was received but verification failed. Your subscription will be activated shortly. If not, please contact support.');
                 resolve(false);
                 return;
               }
@@ -150,6 +151,7 @@ export const useRazorpay = () => {
           modal: {
             ondismiss: () => {
               console.log('Payment modal dismissed');
+              toast.info('Payment cancelled. You can upgrade anytime from settings.');
               setIsLoading(false);
               resolve(false);
             },
@@ -161,7 +163,7 @@ export const useRazorpay = () => {
       });
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error('Payment failed. Please try again.');
+      toast.error('Payment failed unexpectedly. Please check your connection and try again.');
       return false;
     } finally {
       setIsLoading(false);
@@ -199,7 +201,8 @@ export const useRazorpay = () => {
 
       if (subError || !subData) {
         console.error('Subscription creation error:', subError);
-        toast.error('Failed to create subscription');
+        const errorMessage = subData?.error || subError?.message || 'Something went wrong';
+        toast.error(`Subscription failed: ${errorMessage}. Please try again or contact support.`);
         return false;
       }
 
@@ -230,6 +233,7 @@ export const useRazorpay = () => {
           modal: {
             ondismiss: () => {
               console.log('Subscription modal dismissed');
+              toast.info('Subscription cancelled. You can subscribe anytime from settings.');
               setIsLoading(false);
               resolve(false);
             },
@@ -241,7 +245,7 @@ export const useRazorpay = () => {
       });
     } catch (error) {
       console.error('Subscription error:', error);
-      toast.error('Subscription failed. Please try again.');
+      toast.error('Subscription failed unexpectedly. Please check your connection and try again.');
       return false;
     } finally {
       setIsLoading(false);
