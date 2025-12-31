@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     // Get the authorization header to verify the user
     const authHeader = req.headers.get('Authorization');
@@ -25,12 +25,15 @@ serve(async (req) => {
       });
     }
 
-    // Create a client with the user's auth token to verify identity
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    // Extract token from header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Use service role client to verify the JWT token
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Verify the token by getting user info
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -40,13 +43,9 @@ serve(async (req) => {
     }
 
     const { latitude, longitude } = await req.json();
-    const userId = user.id; // Use authenticated user's ID, not from request body
+    const userId = user.id; // Use authenticated user's ID
     
     console.log('Generating morning briefing for authenticated user:', userId);
-
-    // Use service role for data access after authentication is verified
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch user profile
     const { data: profile } = await supabase
