@@ -39,7 +39,7 @@ serve(async (req) => {
     const orderData = {
       amount: tierInfo.amount,
       currency: 'INR',
-      receipt: `order_${userId}_${tier}_${Date.now()}`,
+      receipt: `${tier}_${Date.now()}`.slice(0, 40),
       notes: {
         tier,
         userId,
