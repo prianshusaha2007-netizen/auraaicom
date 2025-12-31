@@ -379,6 +379,13 @@ function validateInput(data: any): { valid: boolean; error?: string; sanitized?:
       relationshipPhase: typeof userProfile.relationshipPhase === 'string' ? userProfile.relationshipPhase.slice(0, 20) : 'introduction',
       daysSinceStart: typeof userProfile.daysSinceStart === 'number' ? Math.min(userProfile.daysSinceStart, 9999) : 0,
       subscriptionTier: typeof userProfile.subscriptionTier === 'string' ? userProfile.subscriptionTier.slice(0, 10) : 'core',
+      // Smart Routine context
+      currentMood: typeof userProfile.currentMood === 'string' ? userProfile.currentMood.slice(0, 10) : undefined,
+      todayBlocks: Array.isArray(userProfile.todayBlocks) ? userProfile.todayBlocks.slice(0, 10).map((b: any) => ({
+        name: typeof b.name === 'string' ? b.name.slice(0, 50) : 'Activity',
+        timing: typeof b.timing === 'string' ? b.timing.slice(0, 20) : '',
+        type: typeof b.type === 'string' ? b.type.slice(0, 20) : 'custom',
+      })) : undefined,
     };
   }
 
@@ -498,6 +505,8 @@ serve(async (req) => {
     console.log("Relationship phase:", relationshipPhase);
     console.log("Days since start:", daysSinceStart);
     console.log("Subscription tier:", subscriptionTier);
+    console.log("Current mood:", userProfile?.currentMood);
+    console.log("Today's blocks:", userProfile?.todayBlocks?.length || 0);
     console.log("Message count:", messages?.length || 0);
     console.log("Needs real-time:", realTimeCheck.needsRealTime, realTimeCheck.queryType);
     console.log("Coding mode:", isCodingMode);
@@ -873,6 +882,62 @@ ${energyLevel === 'high' ? `- FULL session recommended
 - Challenge them slightly
 - "You're feeling ready — let's make the most of this energy."` : ''}
 `;
+    }
+
+    // Smart Routine context - mood-aware responses
+    const userMood = userProfile?.currentMood;
+    const todayBlocks = userProfile?.todayBlocks;
+    if (userMood || (todayBlocks && todayBlocks.length > 0)) {
+      additionalContext += `
+
+====================================
+⏰ SMART ROUTINE CONTEXT
+====================================
+`;
+      if (userMood) {
+        additionalContext += `
+USER'S CURRENT MOOD: ${userMood.toUpperCase()}
+
+MOOD-AWARE BEHAVIOR:
+${userMood === 'low' ? `- Be extra gentle, suggest lighter activities
+- Reduce expectations for today
+- "Want to keep it light today?"
+- Never push productivity on a low-energy day` : ''}
+${userMood === 'normal' ? `- Supportive and steady
+- Encourage but don't push
+- Normal rhythm for the day` : ''}
+${userMood === 'high' ? `- Match their enthusiasm
+- Can suggest making the most of the energy
+- Encourage productivity if they want it` : ''}
+`;
+      }
+      if (todayBlocks && todayBlocks.length > 0) {
+        const blocksList = todayBlocks.map((b: any) => `${b.name} at ${b.timing}`).join(', ');
+        additionalContext += `
+TODAY'S ROUTINE BLOCKS: ${blocksList}
+
+ROUTINE BEHAVIOR RULES:
+- Routines are supportive, not strict
+- NEVER shame, insist, or guilt the user
+- Before mentioning a routine: Ask permission, offer options (start, shift, skip)
+- If user skips: Acknowledge lightly, NEVER mark as failure
+- Example: "Hey — study time's around now. Want to start, or shift it a bit?"
+- Motivation > enforcement
+- Emotion > schedule
+
+PHRASES TO USE:
+- "Want to start, or shift it a bit?"
+- "That happens."
+- "No stress."
+- "Tomorrow doesn't need to be perfect."
+
+PHRASES TO NEVER USE:
+- "You missed your task"
+- "You failed to complete"
+- "Your streak is broken"
+- "You should have..."
+`;
+      }
     }
 
     // Emotional adaptation context
