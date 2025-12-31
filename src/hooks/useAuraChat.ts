@@ -11,6 +11,7 @@ import { useVoicePlayback } from './useVoicePlayback';
 import { useRelationshipEvolution } from './useRelationshipEvolution';
 import { useSmartRoutine, SmartRoutineBlock } from './useSmartRoutine';
 import { useMasterIntentEngine } from './useMasterIntentEngine';
+import { useChatActions } from './useChatActions';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
@@ -156,6 +157,7 @@ export const useAuraChat = () => {
     shiftBlock,
   } = useSmartRoutine();
   const { classifyIntent, getResponseStrategy } = useMasterIntentEngine();
+  const { handleChatAction, showUpgradeSheet, setShowUpgradeSheet, focusState } = useChatActions();
   
   const messageCountRef = useRef(0);
 
@@ -179,6 +181,16 @@ export const useAuraChat = () => {
 
   const sendMessage = useCallback(async (userMessage: string, preferredModel?: string) => {
     if (!userMessage.trim()) return;
+
+    // CHAT-AS-OS: Handle chat-based actions first (focus mode, subscriptions, etc.)
+    const chatActionResult = handleChatAction(userMessage);
+    if (chatActionResult.handled) {
+      addChatMessage({ content: userMessage, sender: 'user' });
+      if (chatActionResult.response) {
+        addChatMessage({ content: chatActionResult.response, sender: 'aura' });
+      }
+      return;
+    }
 
     // Check if user wants to end the story
     const lowerMessage = userMessage.toLowerCase();
@@ -574,5 +586,9 @@ export const useAuraChat = () => {
     pendingMemory,
     confirmPendingMemory,
     dismissPendingMemory,
+    // Chat-as-OS features
+    showUpgradeSheet,
+    setShowUpgradeSheet,
+    focusState,
   };
 };

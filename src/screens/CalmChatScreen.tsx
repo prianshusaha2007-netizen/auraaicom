@@ -92,7 +92,7 @@ const detectDocIntent = (message: string): boolean => {
 export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const { chatMessages, addChatMessage, userProfile } = useAura();
-  const { sendMessage, isThinking } = useAuraChat();
+  const { sendMessage, isThinking, showUpgradeSheet: chatUpgradeSheet, setShowUpgradeSheet: setChatUpgradeSheet, focusState } = useAuraChat();
   const { speak, isSpeaking } = useVoiceFeedback();
   const { placeholder } = useRotatingPlaceholder(6000);
   const { briefing, isLoading: isBriefingLoading, fetchBriefing } = useMorningBriefing();
@@ -453,6 +453,27 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           </div>
         </div>
       </header>
+
+      {/* Focus Mode Banner - shows when in focus mode */}
+      <AnimatePresence>
+        {focusState?.isActive && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="px-4 py-2"
+          >
+            <div className="bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-xl p-3 border border-violet-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-violet-500 rounded-full animate-pulse" />
+                <span className="font-medium text-violet-600 dark:text-violet-400">Focus Mode</span>
+                <span className="text-sm text-muted-foreground">{focusState.formatTime(focusState.remainingTime)}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">Say "end focus" to stop</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Coding Mentor Banner - shows during coding blocks */}
       <AnimatePresence>
@@ -944,10 +965,13 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         )}
       </AnimatePresence>
 
-      {/* Upgrade Sheet */}
+      {/* Upgrade Sheet - triggered by chat or button */}
       <UpgradeSheet
-        open={showUpgradeSheet}
-        onOpenChange={setShowUpgradeSheet}
+        open={showUpgradeSheet || chatUpgradeSheet}
+        onOpenChange={(open) => {
+          setShowUpgradeSheet(open);
+          if (setChatUpgradeSheet) setChatUpgradeSheet(open);
+        }}
       />
     </div>
   );

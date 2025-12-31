@@ -1114,6 +1114,21 @@ SETTINGS INTENT:
 - Update preference silently
 - No navigation required
 ` : ''}
+${userIntent.type === 'focus' ? `
+FOCUS MODE INTENT (HANDLED BY APP):
+- Focus mode is activated automatically by the app
+- If user asks to start focus: "Focus mode activated 🎯 [X] minute session started."
+- If user asks status: "You're in focus mode. ⏱️ [time] remaining."
+- If user asks to stop: "Focus session ended. Nice work!"
+- During focus: Keep responses SHORT - user is concentrating
+` : ''}
+${userIntent.type === 'subscription' ? `
+SUBSCRIPTION INTENT (HANDLED BY APP):
+- Subscription info is shown by the app
+- Be helpful and conversational about upgrade benefits
+- Don't push too hard, be informative
+- "Plus gives you unlimited messages, deep memory, and more."
+` : ''}
 `;
     }
 
