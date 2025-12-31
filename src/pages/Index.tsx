@@ -126,6 +126,13 @@ const AppContent: React.FC = () => {
       case 'services': return <SmartServicesScreen onMenuClick={() => setSidebarOpen(true)} />;
       case 'daily-plan': return <DailyPlanScreen onBack={() => setActiveTab('chat')} />;
       case 'subscription': return <SubscriptionScreen />;
+      // New "More" menu items - map to existing screens or settings
+      case 'personality': return <PersonalityProfileScreen />;
+      case 'notifications': return <SettingsScreen />;
+      case 'appearance': return <SettingsScreen />;
+      case 'voice': return <SettingsScreen />;
+      case 'account': return <SettingsScreen />;
+      case 'help': return <SettingsScreen />;
       default: return <CalmChatScreen onMenuClick={() => setSidebarOpen(true)} />;
     }
   };
