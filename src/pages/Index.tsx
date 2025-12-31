@@ -30,6 +30,7 @@ import { RemindersScreen } from '@/screens/RemindersScreen';
 import { SmartServicesScreen } from '@/screens/SmartServicesScreen';
 import { DailyRoutineScreen } from '@/screens/DailyRoutineScreen';
 import DailyPlanScreen from '@/screens/DailyPlanScreen';
+import SubscriptionScreen from '@/screens/SubscriptionScreen';
 import { AuraOrb } from '@/components/AuraOrb';
 import { DailyMoodPopup } from '@/components/DailyMoodPopup';
 import { SplashScreen } from '@/components/SplashScreen';
@@ -124,6 +125,7 @@ const AppContent: React.FC = () => {
       case 'reminders': return <RemindersScreen onMenuClick={() => setSidebarOpen(true)} />;
       case 'services': return <SmartServicesScreen onMenuClick={() => setSidebarOpen(true)} />;
       case 'daily-plan': return <DailyPlanScreen onBack={() => setActiveTab('chat')} />;
+      case 'subscription': return <SubscriptionScreen />;
       default: return <CalmChatScreen onMenuClick={() => setSidebarOpen(true)} />;
     }
   };
