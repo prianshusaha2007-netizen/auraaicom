@@ -18,7 +18,14 @@ import {
   Target,
   BookHeart,
   Heart,
-  CreditCard
+  CreditCard,
+  Sparkles,
+  Clock,
+  Shield,
+  Palette,
+  Mic,
+  User,
+  HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,7 +56,13 @@ export type TabId =
   | 'reminders'
   | 'services'
   | 'daily-plan'
-  | 'subscription';
+  | 'subscription'
+  | 'personality'
+  | 'notifications'
+  | 'appearance'
+  | 'voice'
+  | 'account'
+  | 'help';
 
 interface MenuItem {
   id: TabId | 'new-chat';
@@ -58,27 +71,54 @@ interface MenuItem {
   action?: boolean;
   divider?: boolean;
   section?: string;
+  showBadge?: boolean;
 }
 
-const menuItems: MenuItem[] = [
+// Main chat items (shown at top, outside "More")
+const mainChatItems: MenuItem[] = [
   { id: 'new-chat', icon: Plus, label: 'New Chat', action: true },
-  { id: 'chat', icon: MessageSquare, label: 'Chat', section: 'Main' },
+  { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'history', icon: History, label: 'Chat History' },
   { id: 'reminders', icon: Bell, label: 'Reminders & Alarms' },
   { id: 'services', icon: MapPin, label: 'Smart Services', divider: true },
+];
+
+// "More" menu items - following the exact structure from requirements
+const moreMenuItems: MenuItem[] = [
+  { id: 'subscription', icon: CreditCard, label: 'Subscription & Credits', section: 'More', showBadge: true },
+  { id: 'personality', icon: Sparkles, label: 'Personality & Relationship' },
+  { id: 'routine', icon: Clock, label: 'Routine & Reminders' },
+  { id: 'memories', icon: Brain, label: 'Memory & Privacy' },
+  { id: 'notifications', icon: Bell, label: 'Notifications' },
+  { id: 'appearance', icon: Palette, label: 'Appearance & Accessibility' },
+  { id: 'voice', icon: Mic, label: 'Voice & Language' },
+  { id: 'progress', icon: BarChart3, label: 'Progress & Data' },
+  { id: 'account', icon: User, label: 'Account' },
+  { id: 'help', icon: HelpCircle, label: 'Help & Support', divider: true },
+];
+
+// Wellness & features section
+const wellnessItems: MenuItem[] = [
   { id: 'daily-plan', icon: Target, label: "Today's Focus", section: 'Wellness' },
   { id: 'mood', icon: Heart, label: 'Daily Check-In' },
   { id: 'mood-journal', icon: BookHeart, label: 'Mood Journal' },
   { id: 'games', icon: Gamepad2, label: 'Play Games' },
-  { id: 'routine', icon: Calendar, label: 'Daily Routine' },
   { id: 'hydration', icon: Droplets, label: 'Hydration Tracker' },
-  { id: 'progress', icon: BarChart3, label: 'Progress Dashboard' },
   { id: 'social', icon: Trophy, label: 'Social Leaderboard', divider: true },
-  { id: 'memories', icon: Brain, label: 'Memories', section: 'Personal' },
-  { id: 'image-analysis', icon: Image, label: 'Image Analysis' },
+];
+
+// Tools section
+const toolsItems: MenuItem[] = [
+  { id: 'image-analysis', icon: Image, label: 'Image Analysis', section: 'Tools' },
   { id: 'gallery', icon: ImageIcon, label: 'Image Gallery', divider: true },
-  { id: 'settings', icon: Settings, label: 'Settings', section: 'More' },
-  { id: 'subscription' as TabId, icon: CreditCard, label: 'Subscription' },
+];
+
+// Combined menu items
+const menuItems: MenuItem[] = [
+  ...mainChatItems,
+  ...wellnessItems,
+  ...toolsItems,
+  ...moreMenuItems,
 ];
 
 interface AppSidebarProps {
@@ -198,7 +238,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     )}>
                       {item.label}
                     </span>
-                    {item.id === 'subscription' && isFreePlan && (
+                    {item.showBadge && isFreePlan && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground font-medium">
                         Free Plan
                       </Badge>
