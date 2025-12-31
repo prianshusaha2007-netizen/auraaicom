@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Bug, X, Sun, Moon, Sparkles, RotateCcw, Clock } from 'lucide-react';
+import { FlaskConical, X, Sun, Moon, Sparkles, RotateCcw, Clock } from 'lucide-react';
 
 interface DailyFlowDebugPanelProps {
   onTriggerMorning: () => void;
@@ -10,7 +10,7 @@ interface DailyFlowDebugPanelProps {
   onResetFlow: () => void;
   flowState: {
     showPreferences: boolean;
-    showMorningFlow: boolean;
+    showMorningBriefing: boolean;
     showWindDown: boolean;
     isFirstTimeUser: boolean;
   };
@@ -36,11 +36,11 @@ export const DailyFlowDebugPanel: React.FC<DailyFlowDebugPanelProps> = ({
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="fixed bottom-32 left-4 z-50 w-10 h-10 rounded-full bg-amber-500/90 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors"
+        className="fixed bottom-32 left-4 z-50 w-10 h-10 rounded-full bg-indigo-500/90 text-white shadow-lg flex items-center justify-center hover:bg-indigo-600 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
         title="Daily Flow Debug Panel"
       >
-        <Bug className="w-5 h-5" />
+        <FlaskConical className="w-5 h-5" />
       </motion.button>
 
       {/* Debug Panel */}
@@ -53,9 +53,9 @@ export const DailyFlowDebugPanel: React.FC<DailyFlowDebugPanelProps> = ({
             className="fixed bottom-44 left-4 z-50 w-72 bg-card border border-border rounded-xl shadow-xl overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-amber-500/10 border-b border-border px-4 py-3 flex items-center justify-between">
+            <div className="bg-indigo-500/10 border-b border-border px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" />
+                <Clock className="w-4 h-4 text-indigo-500" />
                 <span className="font-semibold text-sm">24-Hour Flow Debug</span>
               </div>
               <button
@@ -76,8 +76,8 @@ export const DailyFlowDebugPanel: React.FC<DailyFlowDebugPanelProps> = ({
                 <span className={`text-xs px-2 py-0.5 rounded-full ${flowState.showPreferences ? 'bg-violet-500 text-white' : 'bg-muted text-muted-foreground'}`}>
                   Prefs: {flowState.showPreferences ? 'On' : 'Off'}
                 </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${flowState.showMorningFlow ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground'}`}>
-                  Morning: {flowState.showMorningFlow ? 'On' : 'Off'}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${flowState.showMorningBriefing ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                  Morning: {flowState.showMorningBriefing ? 'On' : 'Off'}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${flowState.showWindDown ? 'bg-indigo-500 text-white' : 'bg-muted text-muted-foreground'}`}>
                   Night: {flowState.showWindDown ? 'On' : 'Off'}
