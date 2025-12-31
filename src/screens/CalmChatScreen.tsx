@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Loader2, Download, RefreshCw, Headphones, ChevronDown, MoreVertical } from 'lucide-react';
+import { Send, Plus, Loader2, Download, RefreshCw, Headphones, ChevronDown, MoreVertical, Mic } from 'lucide-react';
+import { useChatGestures } from '@/hooks/useChatGestures';
 import { Button } from '@/components/ui/button';
 import { SplitChatBubble } from '@/components/SplitChatBubble';
 import { TypingIndicator } from '@/components/TypingIndicator';
@@ -137,9 +138,23 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showUpgradeSheet, setShowUpgradeSheet] = useState(false);
   const [showContextSheet, setShowContextSheet] = useState(false);
+  const [longPressVoiceActive, setLongPressVoiceActive] = useState(false);
   
   // Check if coding block is active
   const isCodingBlockActive = activeBlock?.block.type === 'coding';
+  
+  // Chat gestures - long press for voice, swipe right for context shortcuts
+  const { isLongPressing, gestureHandlers } = useChatGestures({
+    onLongPress: () => {
+      setLongPressVoiceActive(true);
+      setShowVoiceMode(true);
+    },
+    onSwipeRight: () => {
+      setShowContextSheet(true);
+    },
+    longPressDelay: 400,
+    swipeThreshold: 80,
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -590,8 +605,31 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         </div>
       )}
 
-      {/* Chat Messages */}
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 py-6">
+      {/* Chat Messages - with gesture support */}
+      <div 
+        ref={chatContainerRef} 
+        className="flex-1 overflow-y-auto px-4 py-6 relative"
+        {...gestureHandlers}
+      >
+        {/* Long press indicator */}
+        <AnimatePresence>
+          {isLongPressing && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-20 h-20 rounded-full aura-gradient flex items-center justify-center animate-pulse">
+                  <Mic className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Opening voice mode...</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
         <div className="max-w-2xl mx-auto space-y-5">
           {chatMessages.map((message, index) => (
             <SplitChatBubble
@@ -902,9 +940,9 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
             </Button>
           </div>
 
-          {/* Subtle hint */}
+          {/* Subtle hint with gesture tips */}
           <p className="text-center text-[11px] text-muted-foreground/40 mt-3">
-            Press Enter to send • Shift+Enter for new line
+            Long press to speak • Swipe right for shortcuts
           </p>
         </div>
       </div>
