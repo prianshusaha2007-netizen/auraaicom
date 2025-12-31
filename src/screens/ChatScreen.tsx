@@ -262,7 +262,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
       setShowImagePrompt(true);
       return;
     } else if (isImageGenRequest(userMessage)) {
-      await useCreditsForAction('image_generation');
+      await useCreditsForAction('image_tool');
       await handleImageGeneration(userMessage);
     } else if (vanishMode) {
       addVanishMessage({ content: userMessage, sender: 'user' });

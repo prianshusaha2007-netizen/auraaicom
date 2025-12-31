@@ -12,13 +12,60 @@ export interface UserCredits {
   last_reset_date: string;
 }
 
-// Credit costs (internal only - never shown to user)
+// Subscription tiers
+export type SubscriptionTier = 'core' | 'plus' | 'pro';
+
+// Credit limits per tier per action type (internal only - NEVER shown to user)
+export const TIER_LIMITS: Record<SubscriptionTier, {
+  normal_chat: number;
+  medium_reasoning: number;
+  long_reasoning: number;
+  skill_session: number;
+  voice_reply: number;
+  image_tool: number;
+  memory_save: number;
+  reminders: number;
+}> = {
+  core: {
+    normal_chat: 25,
+    medium_reasoning: 5,
+    long_reasoning: 0, // Not allowed
+    skill_session: 0, // Not allowed
+    voice_reply: 0, // Not allowed
+    image_tool: 0, // Not allowed
+    memory_save: 5,
+    reminders: 10,
+  },
+  plus: {
+    normal_chat: 120,
+    medium_reasoning: 40,
+    long_reasoning: 10,
+    skill_session: 10,
+    voice_reply: 30,
+    image_tool: 10,
+    memory_save: 999, // Unlimited
+    reminders: 999, // Unlimited
+  },
+  pro: {
+    normal_chat: 300, // Soft cap
+    medium_reasoning: 999, // Unlimited
+    long_reasoning: 999, // Unlimited
+    skill_session: 999, // Unlimited
+    voice_reply: 999, // Unlimited
+    image_tool: 999, // Unlimited
+    memory_save: 999, // Unlimited
+    reminders: 999, // Unlimited
+  },
+};
+
+// Credit costs per action (internal tracking)
 export const CREDIT_COSTS = {
   normal_chat: 1,
-  long_reasoning: 2,
-  voice_reply: 2,
-  skill_session: 3,
-  image_generation: 5,
+  medium_reasoning: 2,
+  long_reasoning: 3,
+  voice_reply: 1,
+  skill_session: 1,
+  image_tool: 1,
   memory_save: 1,
 } as const;
 
@@ -26,19 +73,63 @@ export type CreditAction = keyof typeof CREDIT_COSTS;
 
 export interface CreditStatus {
   isLoading: boolean;
+  tier: SubscriptionTier;
   isPremium: boolean;
   usagePercent: number;
   canUseCredits: boolean;
   showSoftWarning: boolean;
   isLimitReached: boolean;
   allowFinalReply: boolean;
+  actionAllowed: (action: CreditAction) => boolean;
 }
+
+// User-friendly display labels (no numbers!)
+export const TIER_DISPLAY = {
+  core: {
+    conversations: 'Limited',
+    skills: 'Not included',
+    voiceImages: 'Not included',
+    memory: 'Basic',
+    description: 'Good for light daily use.',
+  },
+  plus: {
+    conversations: 'Extended',
+    skills: 'Included',
+    voiceImages: 'Included',
+    memory: 'Full',
+    description: 'Most people choose this.',
+  },
+  pro: {
+    conversations: 'Unlimited',
+    skills: 'Unlimited',
+    voiceImages: 'Unlimited',
+    memory: 'Advanced',
+    description: 'For serious growth.',
+  },
+};
 
 export function useCredits() {
   const { user } = useAuth();
   const [credits, setCredits] = useState<UserCredits | null>(null);
+  const [tier, setTier] = useState<SubscriptionTier>('core');
   const [isLoading, setIsLoading] = useState(true);
   const [finalReplyUsed, setFinalReplyUsed] = useState(false);
+  const [actionUsage, setActionUsage] = useState<Record<string, number>>({});
+
+  // Fetch user tier from engagement table
+  const fetchTier = useCallback(async () => {
+    if (!user?.id) return;
+    
+    const { data } = await supabase
+      .from('user_engagement')
+      .select('subscription_tier')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (data?.subscription_tier) {
+      setTier(data.subscription_tier as SubscriptionTier);
+    }
+  }, [user?.id]);
 
   // Fetch or create user credits
   const fetchCredits = useCallback(async () => {
@@ -48,7 +139,8 @@ export function useCredits() {
     }
 
     try {
-      // Try to fetch existing credits
+      await fetchTier();
+      
       const { data, error } = await supabase
         .from('user_credits')
         .select('*')
@@ -62,7 +154,6 @@ export function useCredits() {
       }
 
       if (data) {
-        // Check if we need to reset daily credits (new day)
         const today = new Date().toISOString().split('T')[0];
         if (data.last_reset_date !== today) {
           const { data: updated, error: updateError } = await supabase
@@ -78,6 +169,7 @@ export function useCredits() {
           if (!updateError && updated) {
             setCredits(updated);
             setFinalReplyUsed(false);
+            setActionUsage({}); // Reset action tracking
           } else {
             setCredits(data);
           }
@@ -85,14 +177,13 @@ export function useCredits() {
           setCredits(data);
         }
       } else {
-        // Create new credits record for user
         const { data: newCredits, error: insertError } = await supabase
           .from('user_credits')
           .insert({
             user_id: user.id,
             is_premium: false,
             daily_credits_used: 0,
-            daily_credits_limit: 50,
+            daily_credits_limit: TIER_LIMITS.core.normal_chat,
             last_reset_date: new Date().toISOString().split('T')[0],
           })
           .select()
@@ -107,76 +198,123 @@ export function useCredits() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, fetchTier]);
 
   useEffect(() => {
     fetchCredits();
   }, [fetchCredits]);
+
+  // Check if a specific action is allowed for current tier
+  const isActionAllowed = useCallback((action: CreditAction): boolean => {
+    const limits = TIER_LIMITS[tier];
+    const actionLimit = limits[action as keyof typeof limits] ?? 0;
+    
+    // Action not available for this tier
+    if (actionLimit === 0) return false;
+    
+    // Pro users - always allowed (soft caps)
+    if (tier === 'pro') return true;
+    
+    // Check usage for this specific action
+    const used = actionUsage[action] ?? 0;
+    return used < actionLimit;
+  }, [tier, actionUsage]);
 
   // Calculate credit status
   const getCreditStatus = useCallback((): CreditStatus => {
     if (isLoading || !credits) {
       return {
         isLoading: true,
+        tier: 'core',
         isPremium: false,
         usagePercent: 0,
         canUseCredits: true,
         showSoftWarning: false,
         isLimitReached: false,
         allowFinalReply: true,
+        actionAllowed: () => true,
       };
     }
 
-    // Premium users have no limits
-    if (credits.is_premium) {
+    const isPremium = tier === 'plus' || tier === 'pro';
+    
+    // Pro users have no visible limits
+    if (tier === 'pro') {
       return {
         isLoading: false,
+        tier: 'pro',
         isPremium: true,
         usagePercent: 0,
         canUseCredits: true,
         showSoftWarning: false,
         isLimitReached: false,
         allowFinalReply: true,
+        actionAllowed: () => true,
       };
     }
 
-    const usagePercent = (credits.daily_credits_used / credits.daily_credits_limit) * 100;
+    // Calculate chat-based usage percent
+    const chatLimit = TIER_LIMITS[tier].normal_chat;
+    const chatUsed = actionUsage.normal_chat ?? 0;
+    const usagePercent = (chatUsed / chatLimit) * 100;
     const showSoftWarning = usagePercent >= 80 && usagePercent < 100;
-    const isLimitReached = credits.daily_credits_used >= credits.daily_credits_limit;
+    const isLimitReached = chatUsed >= chatLimit;
     const allowFinalReply = isLimitReached && !finalReplyUsed;
     const canUseCredits = !isLimitReached || allowFinalReply;
 
     return {
       isLoading: false,
-      isPremium: false,
+      tier,
+      isPremium,
       usagePercent,
       canUseCredits,
       showSoftWarning,
       isLimitReached,
       allowFinalReply,
+      actionAllowed: isActionAllowed,
     };
-  }, [credits, isLoading, finalReplyUsed]);
+  }, [credits, isLoading, tier, finalReplyUsed, actionUsage, isActionAllowed]);
 
   // Use credits for an action
   const useCreditsForAction = useCallback(async (action: CreditAction): Promise<boolean> => {
     if (!user?.id || !credits) return false;
 
-    // Premium users don't consume credits
-    if (credits.is_premium) return true;
+    // Pro users always allowed
+    if (tier === 'pro') {
+      // Track usage but don't block
+      setActionUsage(prev => ({
+        ...prev,
+        [action]: (prev[action] ?? 0) + 1,
+      }));
+      return true;
+    }
 
-    const cost = CREDIT_COSTS[action];
-    const newUsed = credits.daily_credits_used + cost;
+    // Check if action is allowed for tier
+    if (!isActionAllowed(action)) {
+      return false;
+    }
 
-    // Check if this would exceed limit (unless it's the final reply)
     const status = getCreditStatus();
+    
+    // If limit reached and not final reply, block
     if (status.isLimitReached && !status.allowFinalReply) {
       return false;
     }
 
-    // If this is the final reply allowed, mark it as used
+    // Mark final reply as used
     if (status.isLimitReached && status.allowFinalReply) {
       setFinalReplyUsed(true);
     }
+
+    // Track action usage
+    setActionUsage(prev => ({
+      ...prev,
+      [action]: (prev[action] ?? 0) + 1,
+    }));
+
+    // Update total credits in DB
+    const cost = CREDIT_COSTS[action];
+    const newUsed = credits.daily_credits_used + cost;
 
     try {
       const { data, error } = await supabase
@@ -194,7 +332,7 @@ export function useCredits() {
     } catch {
       return false;
     }
-  }, [user?.id, credits, getCreditStatus]);
+  }, [user?.id, credits, tier, isActionAllowed, getCreditStatus]);
 
   // Upgrade to premium
   const upgradeToPremium = useCallback(async (): Promise<boolean> => {
@@ -206,6 +344,7 @@ export function useCredits() {
         .update({
           is_premium: true,
           premium_since: new Date().toISOString(),
+          daily_credits_limit: TIER_LIMITS.plus.normal_chat,
         })
         .eq('user_id', user.id)
         .select()
@@ -213,20 +352,24 @@ export function useCredits() {
 
       if (!error && data) {
         setCredits(data);
+        await fetchTier(); // Refresh tier
         return true;
       }
       return false;
     } catch {
       return false;
     }
-  }, [user?.id]);
+  }, [user?.id, fetchTier]);
 
   return {
     credits,
+    tier,
     isLoading,
     getCreditStatus,
     useCreditsForAction,
     upgradeToPremium,
     refreshCredits: fetchCredits,
+    isActionAllowed,
+    tierDisplay: TIER_DISPLAY[tier],
   };
 }

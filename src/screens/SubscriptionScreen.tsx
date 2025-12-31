@@ -108,25 +108,25 @@ const PLAN_FEATURES: Record<string, { icon: React.ComponentType<{ className?: st
   ],
 };
 
-// Usage display (human-friendly, no numbers)
+// Usage display (human-friendly, no numbers - NEVER show credits!)
 const USAGE_DISPLAY = {
   core: {
     conversations: 'Limited',
     memory: 'Basic',
-    skills: 'Limited',
-    voiceImages: 'Limited',
+    skills: 'Not included',
+    voiceImages: 'Not included',
   },
   plus: {
     conversations: 'Extended',
     memory: 'Full',
-    skills: 'Unlimited',
+    skills: 'Included',
     voiceImages: 'Included',
   },
   pro: {
     conversations: 'Unlimited',
     memory: 'Advanced',
     skills: 'Unlimited',
-    voiceImages: 'Included',
+    voiceImages: 'Unlimited',
   },
 };
 

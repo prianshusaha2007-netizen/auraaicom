@@ -8,6 +8,7 @@ interface CreditWarningProps {
   aiName?: string;
   onContinueTomorrow?: () => void;
   onUpgrade?: () => void;
+  onStayLonger?: () => void;
   className?: string;
 }
 
@@ -16,18 +17,22 @@ export const CreditWarning: React.FC<CreditWarningProps> = ({
   aiName = 'AURRA',
   onContinueTomorrow,
   onUpgrade,
+  onStayLonger,
   className
 }) => {
+  // Soft warning at ~80% usage (WhatsApp style - casual, no pressure)
   if (type === 'soft') {
     return (
       <div className={cn(
-        "flex flex-col gap-2 p-3 rounded-2xl bg-muted/50 border border-border/50 text-sm",
+        "flex flex-col gap-2 p-3 rounded-2xl bg-muted/50 border border-border/50 text-sm animate-fade-in",
         className
       )}>
-        <p className="text-muted-foreground">
+        <p className="text-foreground">
           We've talked quite a bit today 🙂
           <br />
-          If you want, we can continue tomorrow — or unlock more time together.
+          <span className="text-muted-foreground">
+            Want to continue tomorrow, or stay longer?
+          </span>
         </p>
         <div className="flex gap-2 mt-1">
           <Button 
@@ -37,32 +42,34 @@ export const CreditWarning: React.FC<CreditWarningProps> = ({
             onClick={onContinueTomorrow}
           >
             <Clock className="w-3 h-3 mr-1" />
-            Continue tomorrow
+            Tomorrow's fine
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
             className="rounded-full text-xs border-primary/30 text-primary hover:bg-primary/10"
-            onClick={onUpgrade}
+            onClick={onStayLonger || onUpgrade}
           >
             <Sparkles className="w-3 h-3 mr-1" />
-            Unlock more time
+            Stay longer
           </Button>
         </div>
       </div>
     );
   }
 
-  // Limit reached
+  // Limit reached - still allow one final response (WhatsApp style)
   return (
     <div className={cn(
-      "flex flex-col gap-2 p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 text-sm",
+      "flex flex-col gap-2 p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 text-sm animate-fade-in",
       className
     )}>
       <p className="text-foreground">
-        I want to stay with you longer.
+        Let's pause here for today.
         <br />
-        For now, let's pause here — or you can unlock unlimited conversations and go deeper anytime.
+        <span className="text-muted-foreground">
+          I'll be right here tomorrow — or you can unlock more time anytime.
+        </span>
       </p>
       <div className="flex gap-2 mt-2">
         <Button 
@@ -80,7 +87,7 @@ export const CreditWarning: React.FC<CreditWarningProps> = ({
           onClick={onUpgrade}
         >
           <Sparkles className="w-3 h-3 mr-1" />
-          Upgrade {aiName}
+          Upgrade
         </Button>
       </div>
     </div>
