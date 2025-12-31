@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Check, Heart, Sparkles, Brain, Mic, Image, Zap, MessageCircle, Star, Rocket, Crown } from 'lucide-react';
+import { Check, Heart, Sparkles, Star, Rocket, Crown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCredits } from '@/hooks/useCredits';
 import { useAura } from '@/contexts/AuraContext';
 import { useRelationshipEvolution, SubscriptionTier } from '@/hooks/useRelationshipEvolution';
+import { useRazorpay } from '@/hooks/useRazorpay';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface UpgradeSheetProps {
@@ -17,6 +19,7 @@ const TIER_CONFIG: Record<SubscriptionTier, {
   name: string;
   icon: React.ComponentType<{ className?: string }>;
   price: string;
+  priceValue: number;
   color: string;
   tagline: string;
   features: { label: string; highlight?: boolean }[];
@@ -25,6 +28,7 @@ const TIER_CONFIG: Record<SubscriptionTier, {
     name: 'AURRA Core',
     icon: Heart,
     price: 'Free',
+    priceValue: 0,
     color: 'text-muted-foreground',
     tagline: 'A reliable presence',
     features: [
@@ -38,7 +42,8 @@ const TIER_CONFIG: Record<SubscriptionTier, {
   plus: {
     name: 'AURRA Plus',
     icon: Star,
-    price: '₹49–₹99/month',
+    price: '₹199/month',
+    priceValue: 199,
     color: 'text-primary',
     tagline: 'Someone who really knows me',
     features: [
@@ -54,7 +59,8 @@ const TIER_CONFIG: Record<SubscriptionTier, {
   pro: {
     name: 'AURRA Pro',
     icon: Crown,
-    price: '₹199–₹299/month',
+    price: '₹499/month',
+    priceValue: 499,
     color: 'text-amber-500',
     tagline: 'A partner in growth',
     features: [
@@ -72,32 +78,27 @@ export const UpgradeSheet: React.FC<UpgradeSheetProps> = ({ open, onOpenChange }
   const { upgradeToPremium } = useCredits();
   const { upgradeTier, recordUpgradePrompt, engagement } = useRelationshipEvolution();
   const { userProfile } = useAura();
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const { user } = useAuth();
+  const { initiatePayment, isLoading: isPaymentLoading, isReady: isPaymentReady } = useRazorpay();
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('plus');
 
   const aiName = userProfile.aiName || 'AURRA';
   const currentTier = engagement?.subscriptionTier || 'core';
 
   const handleUpgrade = async (tier: SubscriptionTier) => {
-    if (tier === 'core') return;
+    if (tier === 'core' || !user) return;
     
-    setIsUpgrading(true);
-    
-    // Simulate payment flow (in real app, integrate with payment provider)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const tierSuccess = await upgradeTier(tier);
-    const creditsSuccess = await upgradeToPremium();
-    
-    if (tierSuccess && creditsSuccess) {
+    const success = await initiatePayment(tier as 'plus' | 'pro', user.id, {
+      name: userProfile.name,
+      email: user.email,
+    });
+
+    if (success) {
+      await upgradeTier(tier);
+      await upgradeToPremium();
       await recordUpgradePrompt();
-      toast.success(`Thank you 🤍 I'm here with you — without limits now.`);
       onOpenChange(false);
-    } else {
-      toast.error("Looks like that didn't go through. No worries — we can try again anytime.");
     }
-    
-    setIsUpgrading(false);
   };
 
   const getTierIndex = (tier: SubscriptionTier) => {
@@ -232,17 +233,22 @@ export const UpgradeSheet: React.FC<UpgradeSheetProps> = ({ open, onOpenChange }
                             : "bg-primary hover:bg-primary/90"
                         )}
                         onClick={() => handleUpgrade(tier)}
-                        disabled={isUpgrading}
+                        disabled={isPaymentLoading || !isPaymentReady}
                       >
-                        {isUpgrading ? (
+                        {isPaymentLoading ? (
                           <>
-                            <Sparkles className="w-5 h-5 mr-2 animate-pulse" />
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                             Processing...
+                          </>
+                        ) : !isPaymentReady ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Loading...
                           </>
                         ) : (
                           <>
                             <Sparkles className="w-5 h-5 mr-2" />
-                            Unlock {config.name}
+                            Pay {config.price.split('/')[0]}
                           </>
                         )}
                       </Button>
@@ -261,7 +267,7 @@ export const UpgradeSheet: React.FC<UpgradeSheetProps> = ({ open, onOpenChange }
         {/* Footer */}
         <div className="pt-3 border-t border-border">
           <p className="text-xs text-center text-muted-foreground">
-            Cancel anytime · No pressure · Your data stays yours
+            Cancel anytime · Secure payment via Razorpay · Your data stays yours
           </p>
           <p className="text-[10px] text-center text-muted-foreground/70 mt-1">
             Upgrades never appear during emotional moments or late-night chats.
