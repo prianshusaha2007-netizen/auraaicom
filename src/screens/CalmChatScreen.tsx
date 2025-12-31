@@ -30,6 +30,9 @@ import { useRoutineBlocks } from '@/hooks/useRoutineBlocks';
 import { useRoutineVisualization } from '@/hooks/useRoutineVisualization';
 import { useSkillsProgress } from '@/hooks/useSkillsProgress';
 import { useCreditWarning } from '@/hooks/useCreditWarning';
+import { useDailyFlow } from '@/hooks/useDailyFlow';
+import { FirstTimePreferences } from '@/components/FirstTimePreferences';
+import { NightWindDown } from '@/components/NightWindDown';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -120,6 +123,15 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     dismissLimitWarning,
     checkAndShowWarning,
   } = useCreditWarning();
+  
+  // 24-hour daily flow
+  const {
+    showPreferences,
+    showWindDown,
+    isFirstTimeUser,
+    dismissPreferences,
+    dismissWindDown,
+  } = useDailyFlow();
   
   const [inputValue, setInputValue] = useState('');
   const [statusIndex, setStatusIndex] = useState(0);
@@ -697,9 +709,29 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
             />
           )}
 
+          {/* First Time Preferences Flow */}
+          <AnimatePresence>
+            {showPreferences && isFirstTimeUser && (
+              <FirstTimePreferences
+                onComplete={dismissPreferences}
+                onSendMessage={handleSend}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Night Wind Down Flow */}
+          <AnimatePresence>
+            {showWindDown && !isFirstTimeUser && (
+              <NightWindDown
+                onDismiss={dismissWindDown}
+                onSendMessage={handleSend}
+              />
+            )}
+          </AnimatePresence>
+
           {/* Quick Actions - Show when chat is empty or minimal */}
           <AnimatePresence>
-            {showQuickActions && !showMorningFlow && chatMessages.length <= 1 && (
+            {showQuickActions && !showMorningFlow && !showPreferences && !showWindDown && chatMessages.length <= 1 && (
               <ChatQuickActions 
                 onAction={handleQuickAction}
                 className="py-6"
