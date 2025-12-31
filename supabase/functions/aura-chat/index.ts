@@ -528,6 +528,26 @@ function validateInput(data: any): { valid: boolean; error?: string; sanitized?:
         responseLength: typeof userProfile.responseStrategy.responseLength === 'string' ? userProfile.responseStrategy.responseLength.slice(0, 10) : 'medium',
         featureHint: typeof userProfile.responseStrategy.featureHint === 'string' ? userProfile.responseStrategy.featureHint.slice(0, 30) : '',
       } : undefined,
+      // Real-time context (location, weather, live awareness)
+      realtimeContext: userProfile.realtimeContext && typeof userProfile.realtimeContext === 'object' ? {
+        currentTime: typeof userProfile.realtimeContext.currentTime === 'string' ? userProfile.realtimeContext.currentTime.slice(0, 20) : undefined,
+        currentDate: typeof userProfile.realtimeContext.currentDate === 'string' ? userProfile.realtimeContext.currentDate.slice(0, 50) : undefined,
+        dayOfWeek: typeof userProfile.realtimeContext.dayOfWeek === 'string' ? userProfile.realtimeContext.dayOfWeek.slice(0, 15) : undefined,
+        timeOfDay: typeof userProfile.realtimeContext.timeOfDay === 'string' ? userProfile.realtimeContext.timeOfDay.slice(0, 15) : undefined,
+        isWeekend: userProfile.realtimeContext.isWeekend === true,
+        isLateNight: userProfile.realtimeContext.isLateNight === true,
+        city: typeof userProfile.realtimeContext.city === 'string' ? userProfile.realtimeContext.city.slice(0, 50) : undefined,
+        country: typeof userProfile.realtimeContext.country === 'string' ? userProfile.realtimeContext.country.slice(0, 50) : undefined,
+        hasLocation: userProfile.realtimeContext.hasLocation === true,
+        temperature: typeof userProfile.realtimeContext.temperature === 'number' ? userProfile.realtimeContext.temperature : undefined,
+        feelsLike: typeof userProfile.realtimeContext.feelsLike === 'number' ? userProfile.realtimeContext.feelsLike : undefined,
+        condition: typeof userProfile.realtimeContext.condition === 'string' ? userProfile.realtimeContext.condition.slice(0, 30) : undefined,
+        weatherEmoji: typeof userProfile.realtimeContext.weatherEmoji === 'string' ? userProfile.realtimeContext.weatherEmoji.slice(0, 5) : undefined,
+        isHot: userProfile.realtimeContext.isHot === true,
+        isCold: userProfile.realtimeContext.isCold === true,
+        isRaining: userProfile.realtimeContext.isRaining === true,
+        hasWeather: userProfile.realtimeContext.hasWeather === true,
+      } : undefined,
     };
   }
 
@@ -623,6 +643,22 @@ serve(async (req) => {
     const timeOfDay = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : currentHour < 21 ? 'evening' : 'night';
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
     
+    // Extract real-time context from userProfile (sent from frontend)
+    const realtimeContext = userProfile?.realtimeContext || {};
+    const hasLocation = realtimeContext.hasLocation === true;
+    const hasWeather = realtimeContext.hasWeather === true;
+    const city = realtimeContext.city || null;
+    const country = realtimeContext.country || null;
+    const temperature = realtimeContext.temperature;
+    const feelsLike = realtimeContext.feelsLike;
+    const weatherCondition = realtimeContext.condition;
+    const weatherEmoji = realtimeContext.weatherEmoji || '';
+    const isHot = realtimeContext.isHot === true;
+    const isCold = realtimeContext.isCold === true;
+    const isRaining = realtimeContext.isRaining === true;
+    const isWeekend = realtimeContext.isWeekend === true;
+    const isLateNight = realtimeContext.isLateNight === true;
+    
     // Detect active persona layer (with user preference as soft bias)
     const preferredPersona = userProfile?.preferredPersona || 'companion';
     const responseStyle = userProfile?.responseStyle || 'balanced';
@@ -658,6 +694,8 @@ serve(async (req) => {
     console.log("Energy level:", energyLevel);
     console.log("Humor check:", humorCheck);
     console.log("Routine edit:", isRoutineEdit);
+    console.log("Real-time context - Location:", hasLocation ? `${city}, ${country}` : 'unavailable');
+    console.log("Real-time context - Weather:", hasWeather ? `${temperature}°C, ${weatherCondition}` : 'unavailable');
     console.log("Recall intent:", recallIntent.type, recallIntent.isRecall);
     console.log("Memory intent:", memoryIntent.action);
 
@@ -2013,6 +2051,42 @@ ${timeOfDay === 'morning' ? `MORNING: Greet gently. Ask ONE focus question: "Wha
 ${timeOfDay === 'afternoon' ? `AFTERNOON: Execution mode. Be efficient. Support focus.` : ''}
 ${timeOfDay === 'evening' ? `EVENING: Reflection time. Wind down gently. Acknowledge the day.` : ''}
 ${timeOfDay === 'night' ? `NIGHT: Calm and closure. Be soft. Help process the day quietly.` : ''}
+
+====================================
+🌍 REAL-TIME CONTEXT AWARENESS
+====================================
+${aiName} always knows when and where the user is — without asking.
+This data influences tone, suggestions, and timing NATURALLY.
+
+CURRENT CONTEXT:
+- Time: ${realtimeContext.currentTime || timeOfDay} (${dayOfWeek})
+- Date: ${realtimeContext.currentDate || now.toLocaleDateString()}
+${isWeekend ? '- Weekend: User might be relaxed, adjust accordingly' : ''}
+${isLateNight ? '- Late night: User might be tired or unable to sleep — be extra gentle' : ''}
+${hasLocation && city ? `- Location: ${city}${country ? `, ${country}` : ''}` : ''}
+${hasWeather && temperature !== undefined ? `- Weather: ${temperature}°C ${weatherEmoji} (${weatherCondition || 'unknown'})` : ''}
+${isHot ? '- Hot today: Suggest hydration naturally when relevant' : ''}
+${isCold ? '- Cold today: Acknowledge when relevant' : ''}
+${isRaining ? '- Raining: Outdoor plans may need reconsideration' : ''}
+
+REAL-TIME USAGE RULES:
+1. NEVER dump raw data: ❌ "It's 7:14 AM and 31°C with 62% humidity"
+2. USE context naturally: ✅ "Morning 🙂 It's already warm today — staying hydrated will help."
+3. Only mention weather/time/location when RELEVANT to the conversation
+4. Adapt tone based on time:
+   - Morning: Fresh, gentle starts
+   - Afternoon: Focused, efficient
+   - Evening: Winding down, reflective
+   - Late night: Calm, slow, supportive
+5. If user asks "What should I do now?" or "Is it a good time to go out?" — use real-time data
+6. Weekend mornings can be more relaxed
+7. If data is unavailable, proceed normally — NEVER say "I don't have location access"
+
+NATURAL EXAMPLES:
+- "It's pretty hot right now. If you're going out, lighter workout might feel better."
+- "It's getting late now. Want to continue or pause this till morning?"
+- "Nice weekend morning 🙂"
+- "Looks like it's rainy out there — maybe skip the outdoor plan today?"
 
 ====================================
 🌍 MULTI-LANGUAGE INTELLIGENCE

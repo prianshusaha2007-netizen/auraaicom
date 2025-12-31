@@ -12,6 +12,7 @@ import { useRelationshipEvolution } from './useRelationshipEvolution';
 import { useSmartRoutine, SmartRoutineBlock } from './useSmartRoutine';
 import { useMasterIntentEngine } from './useMasterIntentEngine';
 import { useChatActions } from './useChatActions';
+import { useRealtimeContext } from './useRealtimeContext';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
@@ -158,6 +159,7 @@ export const useAuraChat = () => {
   } = useSmartRoutine();
   const { classifyIntent, getResponseStrategy } = useMasterIntentEngine();
   const { handleChatAction, showUpgradeSheet, setShowUpgradeSheet, focusState } = useChatActions();
+  const { context: realtimeContext, getContextForAI } = useRealtimeContext();
   
   const messageCountRef = useRef(0);
 
@@ -375,6 +377,26 @@ export const useAuraChat = () => {
             // Time context for routine-aware responses
             timeContext: getTimeContext(),
             upcomingBlock: findRelevantBlock(getTodayBlocks(), new Date().getHours()),
+            // Real-time context (location, weather, live awareness)
+            realtimeContext: {
+              currentTime: realtimeContext.currentTime,
+              currentDate: realtimeContext.currentDate,
+              dayOfWeek: realtimeContext.dayOfWeek,
+              timeOfDay: realtimeContext.timeOfDay,
+              isWeekend: realtimeContext.isWeekend,
+              isLateNight: realtimeContext.isLateNight,
+              city: realtimeContext.city,
+              country: realtimeContext.country,
+              hasLocation: realtimeContext.hasLocation,
+              temperature: realtimeContext.temperature,
+              feelsLike: realtimeContext.feelsLike,
+              condition: realtimeContext.condition,
+              weatherEmoji: realtimeContext.weatherEmoji,
+              isHot: realtimeContext.isHot,
+              isCold: realtimeContext.isCold,
+              isRaining: realtimeContext.isRaining,
+              hasWeather: realtimeContext.hasWeather,
+            },
             // Master Intent for "Chat is the OS"
             intent: {
               type: intent.type,
@@ -476,7 +498,7 @@ export const useAuraChat = () => {
     } finally {
       setIsThinking(false);
     }
-  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage, getMemoryContext, checkSummarization, playText]);
+  }, [chatMessages, addChatMessage, updateChatMessage, userProfile, detectReminderIntent, addFromNaturalLanguage, generateReminderConfirmation, storyState, detectStoryIntent, startStory, endStory, getStorySystemPrompt, generateStoryStartMessage, getMemoryContext, checkSummarization, playText, realtimeContext]);
 
   // Helper function for streaming story responses
   const streamStoryResponse = async (conversationHistory: Message[], preferredModel?: string) => {
