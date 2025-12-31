@@ -31,6 +31,7 @@ import { useRoutineVisualization } from '@/hooks/useRoutineVisualization';
 import { useSkillsProgress } from '@/hooks/useSkillsProgress';
 import { useCreditWarning } from '@/hooks/useCreditWarning';
 import { useDailyFlow } from '@/hooks/useDailyFlow';
+import { useRealtimeContext } from '@/hooks/useRealtimeContext';
 import { FirstTimePreferences } from '@/components/FirstTimePreferences';
 import { NightWindDown } from '@/components/NightWindDown';
 import { MorningBriefingCard } from '@/components/MorningBriefingCard';
@@ -140,6 +141,9 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     triggerFirstTimeFlow,
     resetAllFlowState,
   } = useDailyFlow();
+  
+  // Real-time context (location, weather, time awareness)
+  const { context: realtimeContext } = useRealtimeContext();
   
   const [inputValue, setInputValue] = useState('');
   const [statusIndex, setStatusIndex] = useState(0);
@@ -448,7 +452,20 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
             </div>
             {/* Center: Name & Status */}
             <div>
-              <h1 className="font-semibold text-foreground">AURRA</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold text-foreground">AURRA</h1>
+                {/* Subtle weather indicator */}
+                {realtimeContext.hasWeather && realtimeContext.temperature !== null && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/50 text-[10px] text-muted-foreground"
+                  >
+                    <span>{realtimeContext.weatherEmoji || '🌤️'}</span>
+                    <span>{Math.round(realtimeContext.temperature)}°</span>
+                  </motion.div>
+                )}
+              </div>
               <motion.p 
                 key={currentStatus}
                 initial={{ opacity: 0, y: 5 }}
