@@ -691,6 +691,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_engagement: {
+        Row: {
+          created_at: string
+          emotional_conversations: number
+          first_interaction_at: string
+          id: string
+          last_interaction_at: string
+          mood_shares: number
+          relationship_phase: string
+          routines_created: number
+          skill_sessions: number
+          subscription_tier: string
+          total_days_active: number
+          total_messages: number
+          updated_at: string
+          upgrade_prompted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emotional_conversations?: number
+          first_interaction_at?: string
+          id?: string
+          last_interaction_at?: string
+          mood_shares?: number
+          relationship_phase?: string
+          routines_created?: number
+          skill_sessions?: number
+          subscription_tier?: string
+          total_days_active?: number
+          total_messages?: number
+          updated_at?: string
+          upgrade_prompted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emotional_conversations?: number
+          first_interaction_at?: string
+          id?: string
+          last_interaction_at?: string
+          mood_shares?: number
+          relationship_phase?: string
+          routines_created?: number
+          skill_sessions?: number
+          subscription_tier?: string
+          total_days_active?: number
+          total_messages?: number
+          updated_at?: string
+          upgrade_prompted_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       voice_transcripts: {
         Row: {
           content: string
