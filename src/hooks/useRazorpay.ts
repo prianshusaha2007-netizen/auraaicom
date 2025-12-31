@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 declare global {
   interface Window {
@@ -133,7 +134,33 @@ export const useRazorpay = () => {
                 return;
               }
 
-              toast.success('Payment successful! Your subscription is now active.');
+              // Trigger confetti celebration
+              confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#8B5CF6', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
+              });
+              
+              // Second burst for extra celebration
+              setTimeout(() => {
+                confetti({
+                  particleCount: 50,
+                  angle: 60,
+                  spread: 55,
+                  origin: { x: 0 },
+                  colors: ['#8B5CF6', '#F59E0B', '#10B981'],
+                });
+                confetti({
+                  particleCount: 50,
+                  angle: 120,
+                  spread: 55,
+                  origin: { x: 1 },
+                  colors: ['#8B5CF6', '#F59E0B', '#10B981'],
+                });
+              }, 250);
+
+              toast.success('Payment successful! Your subscription is now active. 🎉');
               resolve(true);
             } catch (err) {
               console.error('Verification error:', err);
@@ -218,9 +245,33 @@ export const useRazorpay = () => {
           handler: async (response: RazorpayResponse) => {
             console.log('Subscription payment successful:', response);
             
-            // For subscriptions, the webhook will handle activation
-            // Just show success message here
-            toast.success('Subscription activated! Auto-renewal is enabled.');
+            // Trigger confetti celebration
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ['#8B5CF6', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
+            });
+            
+            // Second burst for extra celebration
+            setTimeout(() => {
+              confetti({
+                particleCount: 50,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: ['#8B5CF6', '#F59E0B', '#10B981'],
+              });
+              confetti({
+                particleCount: 50,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: ['#8B5CF6', '#F59E0B', '#10B981'],
+              });
+            }, 250);
+
+            toast.success('Subscription activated! Auto-renewal is enabled. 🎉');
             resolve(true);
           },
           prefill: {

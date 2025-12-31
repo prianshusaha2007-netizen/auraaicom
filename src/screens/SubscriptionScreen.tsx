@@ -410,23 +410,37 @@ const SubscriptionScreen: React.FC = () => {
               const Icon = info.icon;
               const features = PLAN_FEATURES[tier];
               const isCurrent = tier === currentTier;
+              const isPlus = tier === 'plus';
               
               return (
                 <Card 
                   key={tier}
                   className={cn(
-                    "transition-all",
+                    "transition-all relative overflow-hidden",
                     isCurrent && "border-2 border-primary",
                     tier === 'pro' && "bg-gradient-to-br from-amber-500/5 to-orange-500/5",
                     tier === 'plus' && "bg-gradient-to-br from-primary/5 to-accent/5"
                   )}
                 >
+                  {/* Most Popular Banner */}
+                  {isPlus && (
+                    <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-semibold text-primary-foreground shadow-md">
+                      Most Popular
+                    </div>
+                  )}
+                  
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Icon className={cn("w-5 h-5", info.color)} />
                         <span className={cn("font-semibold", info.color)}>{info.name}</span>
                         {isCurrent && <Badge variant="secondary">Current</Badge>}
+                        {isPlus && !isCurrent && (
+                          <Badge className="bg-primary/20 text-primary border-0 text-[10px]">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Recommended
+                          </Badge>
+                        )}
                       </div>
                       <span className="font-bold">{info.price}</span>
                     </div>
