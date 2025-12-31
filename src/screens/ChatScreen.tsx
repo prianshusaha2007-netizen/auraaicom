@@ -61,6 +61,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [showAutomation, setShowAutomation] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-flash');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [showVoiceInput, setShowVoiceInput] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -458,16 +459,19 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
     toast.success(!wakeWordEnabled ? 'Say "Hey AURA" to start!' : 'Wake word disabled.');
   };
 
-  const handleSpeakMessage = async (text: string) => {
+  const handleSpeakMessage = async (text: string, messageId?: string) => {
     if (isPlaying()) {
       stopPlayback();
       setIsSpeaking(false);
+      setSpeakingMessageId(null);
       return;
     }
 
     setIsSpeaking(true);
+    setSpeakingMessageId(messageId || null);
     await playText(text, userProfile.aurraGender || 'neutral');
     setIsSpeaking(false);
+    setSpeakingMessageId(null);
   };
 
   const handleQuickAction = (actionId: string, message: string) => {
@@ -877,7 +881,8 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
                     content={message.content}
                     sender={message.sender}
                     timestamp={message.timestamp}
-                    onSpeak={message.sender === 'aura' ? handleSpeakMessage : undefined}
+                    onSpeak={message.sender === 'aura' ? (text) => handleSpeakMessage(text, message.id) : undefined}
+                    isSpeaking={speakingMessageId === message.id}
                     onReply={() => handleReply(message as ExtendedMessage)}
                     onReact={(emoji) => handleReaction(message.id, emoji)}
                     onDelete={() => handleDeleteMessage(message.id)}
@@ -900,7 +905,8 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
               content={message.content}
               sender={message.sender}
               timestamp={message.timestamp}
-              onSpeak={message.sender === 'aura' ? handleSpeakMessage : undefined}
+              onSpeak={message.sender === 'aura' ? (text) => handleSpeakMessage(text, message.id) : undefined}
+              isSpeaking={speakingMessageId === message.id}
               onReply={() => handleReply(message as ExtendedMessage)}
               onReact={(emoji) => handleReaction(message.id, emoji)}
               onDelete={() => handleDeleteMessage(message.id)}

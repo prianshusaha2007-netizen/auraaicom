@@ -15,7 +15,8 @@ interface ChatBubbleProps {
   className?: string;
   imageUrl?: string;
   isGeneratingImage?: boolean;
-  onSpeak?: (text: string) => void;
+  onSpeak?: (text: string, messageId?: string) => void;
+  isSpeaking?: boolean;
   onReply?: () => void;
   onDelete?: () => void;
   onEdit?: (newContent: string) => void;
@@ -44,6 +45,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   imageUrl,
   isGeneratingImage,
   onSpeak,
+  isSpeaking: isSpeakingProp,
   onReply,
   onDelete,
   onEdit,
@@ -496,10 +498,18 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onSpeak(textContent)}
-                className="h-6 w-6 rounded-full hover:bg-muted"
-                title="Listen"
+                className={cn(
+                  "h-6 w-6 rounded-full hover:bg-muted",
+                  isSpeakingProp && "bg-primary/10"
+                )}
+                title={isSpeakingProp ? "Stop" : "Listen"}
               >
-                <Volume2 className="w-3 h-3 text-muted-foreground" />
+                <Volume2 className={cn(
+                  "w-3 h-3",
+                  isSpeakingProp 
+                    ? "text-primary animate-pulse" 
+                    : "text-muted-foreground"
+                )} />
               </Button>
             )}
           </motion.div>
