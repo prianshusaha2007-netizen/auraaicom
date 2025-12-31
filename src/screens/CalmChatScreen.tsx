@@ -129,9 +129,11 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   // 24-hour daily flow
   const {
     showPreferences,
+    showMorningBriefing,
     showWindDown,
     isFirstTimeUser,
     dismissPreferences,
+    dismissMorningBriefing,
     dismissWindDown,
     triggerMorningFlow,
     triggerNightFlow,
@@ -142,7 +144,6 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   const [inputValue, setInputValue] = useState('');
   const [statusIndex, setStatusIndex] = useState(0);
   const [memoryPrompt, setMemoryPrompt] = useState<{ content: string; show: boolean }>({ content: '', show: false });
-  const [showMorningFlow, setShowMorningFlow] = useState(false);
   const [showMediaSheet, setShowMediaSheet] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
@@ -188,25 +189,19 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     return () => clearInterval(timer);
   }, []);
 
-  // Check for morning flow - only fetch briefing if user is authenticated
+  // Fetch morning briefing when hook triggers it
   useEffect(() => {
-    const checkMorningFlow = async () => {
+    const fetchMorningBriefingData = async () => {
+      if (!showMorningBriefing) return;
+      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return; // Don't fetch if not authenticated
+      if (!session) return;
       
-      const hour = new Date().getHours();
-      const lastShown = localStorage.getItem('aura-morning-flow-date');
-      const today = new Date().toISOString().split('T')[0];
-      
-      if (hour >= 5 && hour < 11 && lastShown !== today && chatMessages.length <= 1) {
-        setShowMorningFlow(true);
-        localStorage.setItem('aura-morning-flow-date', today);
-        fetchBriefing();
-      }
+      fetchBriefing();
     };
     
-    checkMorningFlow();
-  }, [chatMessages.length, fetchBriefing]);
+    fetchMorningBriefingData();
+  }, [showMorningBriefing, fetchBriefing]);
 
   // Hide quick actions when chat has messages (user messages specifically)
   useEffect(() => {
@@ -379,12 +374,12 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
   };
 
   const handleMorningQuestion = async (answer: string) => {
-    setShowMorningFlow(false);
+    dismissMorningBriefing();
     await handleSend(answer);
   };
 
   const handleMorningBriefingAction = async (choice: 'light' | 'push') => {
-    setShowMorningFlow(false);
+    dismissMorningBriefing();
     localStorage.setItem('aura-day-mode', choice);
     
     const message = choice === 'light' 
@@ -528,11 +523,11 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
 
       {/* Morning Briefing Card - appears in chat style */}
       <AnimatePresence>
-        {showMorningFlow && (
+        {showMorningBriefing && (
           <div className="px-4 py-4">
             <MorningBriefingCard
               userName={userProfile.name}
-              onDismiss={() => setShowMorningFlow(false)}
+              onDismiss={dismissMorningBriefing}
               onAction={handleMorningBriefingAction}
             />
           </div>
@@ -547,7 +542,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
       </AnimatePresence>
 
       {/* Routine Widget - shows when not in morning flow and has blocks */}
-      {!showMorningFlow && chatMessages.length <= 1 && !currentSession && (
+      {!showMorningBriefing && chatMessages.length <= 1 && !currentSession && (
         <div className="px-4 pb-2 space-y-2">
           <RoutineWidget 
             onViewVisual={openVisual}
@@ -680,7 +675,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
 
           {/* Quick Actions - Show when chat is empty or minimal */}
           <AnimatePresence>
-            {showQuickActions && !showMorningFlow && !showPreferences && !showWindDown && chatMessages.length <= 1 && (
+            {showQuickActions && !showMorningBriefing && !showPreferences && !showWindDown && chatMessages.length <= 1 && (
               <ChatQuickActions 
                 onAction={handleQuickAction}
                 className="py-6"
@@ -1008,18 +1003,14 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
       <DailyFlowDebugPanel
         onTriggerMorning={() => {
           triggerMorningFlow();
-          setShowMorningFlow(true);
           fetchBriefing();
         }}
         onTriggerNight={triggerNightFlow}
         onTriggerFirstTime={triggerFirstTimeFlow}
-        onResetFlow={() => {
-          resetAllFlowState();
-          setShowMorningFlow(false);
-        }}
+        onResetFlow={resetAllFlowState}
         flowState={{
           showPreferences,
-          showMorningFlow,
+          showMorningBriefing,
           showWindDown,
           isFirstTimeUser,
         }}
