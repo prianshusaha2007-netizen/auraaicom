@@ -21,9 +21,28 @@ export interface CreditWarningState {
  * - Respects user dismissals
  */
 export function useCreditWarning(): CreditWarningState {
-  const { getCreditStatus, credits } = useCredits();
-  const creditStatus = getCreditStatus();
+  const { getCreditStatus, credits, isLoading } = useCredits();
   const { recordLimitHit, consecutiveLimitDays, getSoftLimitMessage } = useSoftUpsell();
+  
+  // Memoize credit status to avoid calling function during render
+  const [creditStatus, setCreditStatus] = useState<CreditStatus>({
+    isLoading: true,
+    tier: 'core',
+    isPremium: false,
+    usagePercent: 0,
+    canUseCredits: true,
+    showSoftWarning: false,
+    isLimitReached: false,
+    allowFinalReply: true,
+    actionAllowed: () => true,
+  });
+  
+  // Update credit status when credits change
+  useEffect(() => {
+    if (!isLoading) {
+      setCreditStatus(getCreditStatus());
+    }
+  }, [credits, isLoading, getCreditStatus]);
   
   const [showSoftWarning, setShowSoftWarning] = useState(false);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
