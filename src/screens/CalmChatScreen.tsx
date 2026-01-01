@@ -127,12 +127,13 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
     checkAndShowWarning,
   } = useCreditWarning();
   
-  // 24-hour daily flow
+  // 24-hour daily flow with greeting tracking
   const {
     showPreferences,
     showMorningBriefing,
     showWindDown,
     isFirstTimeUser,
+    hasGreetedToday,
     dismissPreferences,
     dismissMorningBriefing,
     dismissWindDown,
@@ -140,6 +141,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
     triggerNightFlow,
     triggerFirstTimeFlow,
     resetAllFlowState,
+    markGreeting,
   } = useDailyFlow();
   
   // Real-time context (location, weather, time awareness)
@@ -290,39 +292,46 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
     setShowVoiceTooltip(false);
   }, [chatMessages, inputValue]);
 
-  // Initial greeting - ONLY ONCE per day, not on every app open
+  // Initial greeting - ONLY ONCE per day, using proper greeting tracker
   useEffect(() => {
     if (chatMessages.length === 0 && userProfile.onboardingComplete) {
-      const today = new Date().toDateString();
-      const lastGreetingDate = localStorage.getItem('aurra-last-greeting-date');
-      
-      // Only show greeting if it's a new day
-      if (lastGreetingDate === today) {
-        // Same day - use minimal return message
-        addChatMessage({ content: "Ready when you are.", sender: 'aura' });
+      // Check if already greeted today using our tracking system
+      if (hasGreetedToday) {
+        // Same day return - use presence message instead of greeting
+        const presenceMessages = [
+          "Ready when you are.",
+          "Here with you.",
+          "What's up?",
+          "I'm here.",
+          "Want to continue from earlier?",
+        ];
+        const randomPresence = presenceMessages[Math.floor(Math.random() * presenceMessages.length)];
+        addChatMessage({ content: randomPresence, sender: 'aura' });
         return;
       }
       
-      // New day - mark as greeted and show contextual greeting
-      localStorage.setItem('aurra-last-greeting-date', today);
+      // New day - show contextual greeting and mark as greeted
+      markGreeting();
       
       const hour = new Date().getHours();
+      const name = userProfile.name || 'friend';
       let greeting = '';
       
-      // Simple, contextual greetings - no feature explanations
+      // Time-contextual greetings with routine awareness
       if (hour >= 5 && hour < 12) {
-        greeting = `Morning, ${userProfile.name}. ☀️`;
+        // Morning greeting with routine context
+        greeting = `Morning, ${name} ☀️\nReady when you are.`;
       } else if (hour >= 12 && hour < 17) {
-        greeting = `Hey ${userProfile.name}.`;
+        greeting = `Hey ${name}. What's on your mind?`;
       } else if (hour >= 17 && hour < 21) {
-        greeting = `Evening, ${userProfile.name}.`;
+        greeting = `Evening, ${name}. Want to chat or just chill?`;
       } else {
-        greeting = `Still up, ${userProfile.name}? 🌙`;
+        greeting = `Still up, ${name}? 🌙`;
       }
       
       addChatMessage({ content: greeting, sender: 'aura' });
     }
-  }, [userProfile.onboardingComplete, userProfile.name, chatMessages.length, addChatMessage]);
+  }, [userProfile.onboardingComplete, userProfile.name, chatMessages.length, addChatMessage, hasGreetedToday, markGreeting]);
 
   // Weather-based proactive suggestions
   useEffect(() => {
