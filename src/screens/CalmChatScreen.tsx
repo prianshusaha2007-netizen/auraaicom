@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Loader2, Download, RefreshCw, Headphones, ChevronDown, MoreVertical, Mic } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Send, Plus, Loader2, Download, RefreshCw, Headphones, ChevronDown, MoreVertical, Mic, CreditCard } from 'lucide-react';
 import { useChatGestures } from '@/hooks/useChatGestures';
 import { Button } from '@/components/ui/button';
 import { SplitChatBubble } from '@/components/SplitChatBubble';
@@ -95,6 +96,7 @@ const detectDocIntent = (message: string): boolean => {
 };
 
 export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onNewChat }) => {
+  const navigate = useNavigate();
   const { chatMessages, addChatMessage, userProfile } = useAura();
   const { sendMessage, isThinking, showUpgradeSheet: chatUpgradeSheet, setShowUpgradeSheet: setChatUpgradeSheet, focusState } = useAuraChat();
   const { speak, isSpeaking } = useVoiceFeedback();
@@ -529,8 +531,21 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
             </div>
           </div>
           
-          {/* Right: Voice & More buttons */}
+          {/* Right: Subscription, Voice & More buttons */}
           <div className="flex items-center gap-1">
+            {/* Subscription Quick Access - shows plan badge for free users */}
+            {!creditStatus.isPremium && !creditStatus.isLoading && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-full h-8 px-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 gap-1"
+                onClick={() => navigate('/subscription')}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Free</span>
+              </Button>
+            )}
+            
             {/* Routine Visual Button - shows when visual exists but is hidden */}
             {routineVisual && !showVisual && (
               <RoutineVisualButton
