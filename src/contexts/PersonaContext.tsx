@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { usePersona, PersonaType, PersonaConfig, PersonaBias } from '@/hooks/usePersona';
+import { usePersona, PersonaType, PersonaConfig, PersonaBias, RelationshipMode } from '@/hooks/usePersona';
 import { AvatarStyle } from '@/components/AuraAvatar';
 
 interface PersonaContextType {
@@ -7,8 +7,12 @@ interface PersonaContextType {
   persona: PersonaConfig;
   personaBias: PersonaBias;
   avatarStyle: string;
+  relationshipMode: RelationshipMode;
+  relationshipConfig: { name: string; tone: string; traits: string[]; promptStyle: string };
   allPersonas: Record<PersonaType, PersonaConfig>;
+  allRelationships: Record<RelationshipMode, { name: string; tone: string; traits: string[]; promptStyle: string }>;
   setPersona: (persona: PersonaType) => void;
+  setRelationshipMode: (mode: RelationshipMode) => void;
   autoSwitchPersona: (message: string) => PersonaType;
   detectPersona: (message: string) => PersonaType;
   updateBias: (key: keyof PersonaBias, delta: number) => void;

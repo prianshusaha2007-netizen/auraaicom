@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export type PersonaType = 'companion' | 'mentor' | 'thinker' | 'builder' | 'mirror';
+export type RelationshipMode = 'friend' | 'mentor' | 'coach' | 'thinker';
 
 export interface PersonaConfig {
   type: PersonaType;
@@ -20,6 +21,50 @@ export interface PersonaBias {
   depth: number; // -1 (simple) to 1 (deep)
   formality: number; // -1 (casual) to 1 (formal)
 }
+
+// Relationship mode configurations
+const RELATIONSHIP_CONFIGS: Record<RelationshipMode, { 
+  name: string; 
+  tone: string; 
+  traits: string[]; 
+  promptStyle: string;
+}> = {
+  friend: {
+    name: 'Best Friend',
+    tone: 'warm and casual',
+    traits: ['supportive', 'empathetic', 'playful', 'honest'],
+    promptStyle: `You are the user's best friend. Speak casually, use light humor when appropriate, be warm and supportive. 
+Don't be overly formal. Use contractions. Be genuine and caring. 
+Share your perspective like a close friend would - honest but kind.`,
+  },
+  mentor: {
+    name: 'Mentor',
+    tone: 'patient and guiding',
+    traits: ['wise', 'patient', 'encouraging', 'insightful'],
+    promptStyle: `You are a wise mentor. Guide with patience and clarity.
+Ask thoughtful questions to help the user discover answers themselves.
+Share wisdom from experience. Be encouraging but realistic.
+Help them see the bigger picture and learn from challenges.`,
+  },
+  coach: {
+    name: 'Coach',
+    tone: 'motivating and direct',
+    traits: ['motivating', 'action-oriented', 'challenging', 'supportive'],
+    promptStyle: `You are a supportive coach. Be motivating and action-oriented.
+Push the user gently to do their best. Focus on goals and progress.
+Celebrate wins, no matter how small. When they struggle, remind them of their strength.
+Keep things practical and forward-moving.`,
+  },
+  thinker: {
+    name: 'Thinking Partner',
+    tone: 'analytical and calm',
+    traits: ['analytical', 'structured', 'curious', 'collaborative'],
+    promptStyle: `You are a thinking partner. Help the user think through problems clearly.
+Be analytical but not cold. Break down complex issues together.
+Ask clarifying questions. Explore ideas from multiple angles.
+Help organize thoughts without being prescriptive.`,
+  },
+};
 
 const PERSONAS: Record<PersonaType, PersonaConfig> = {
   companion: {
@@ -105,6 +150,12 @@ const PERSONA_PATTERNS = {
 export const usePersona = () => {
   const { activeTheme } = useTheme();
   const [currentPersona, setCurrentPersona] = useState<PersonaType>('companion');
+  
+  // Relationship mode - user's chosen relationship with AURRA
+  const [relationshipMode, setRelationshipMode] = useState<RelationshipMode>(() => {
+    return (localStorage.getItem('aurra-relationship') as RelationshipMode) || 'friend';
+  });
+  
   const [personaBias, setPersonaBias] = useState<PersonaBias>(() => {
     try {
       const saved = localStorage.getItem('aura-persona-bias');
@@ -117,6 +168,11 @@ export const usePersona = () => {
     return localStorage.getItem('aura-avatar-style') || 'abstract';
   });
 
+  // Save relationship mode
+  useEffect(() => {
+    localStorage.setItem('aurra-relationship', relationshipMode);
+  }, [relationshipMode]);
+
   // Save bias to localStorage
   useEffect(() => {
     localStorage.setItem('aura-persona-bias', JSON.stringify(personaBias));
@@ -126,6 +182,9 @@ export const usePersona = () => {
   useEffect(() => {
     localStorage.setItem('aura-avatar-style', avatarStyle);
   }, [avatarStyle]);
+
+  // Get relationship config
+  const relationshipConfig = useMemo(() => RELATIONSHIP_CONFIGS[relationshipMode], [relationshipMode]);
 
   // Detect persona from message content
   const detectPersona = useCallback((message: string): PersonaType => {
@@ -151,9 +210,10 @@ export const usePersona = () => {
   // Get the current persona config
   const persona = useMemo(() => PERSONAS[currentPersona], [currentPersona]);
 
-  // Generate system prompt additions based on persona
+  // Generate system prompt additions based on persona AND relationship mode
   const getPersonaPromptAdditions = useCallback((): string => {
     const p = PERSONAS[currentPersona];
+    const r = RELATIONSHIP_CONFIGS[relationshipMode];
     const biasInstructions: string[] = [];
 
     if (personaBias.directness > 0.3) {
@@ -176,12 +236,14 @@ export const usePersona = () => {
     }
 
     return `
-CURRENT PERSONA: ${p.name}
-Tone: ${p.tone}
-Traits: ${p.traits.join(', ')}
+RELATIONSHIP MODE: ${r.name}
+${r.promptStyle}
+
+CONTEXT PERSONA: ${p.name}
+Additional Traits: ${p.traits.join(', ')}
 ${biasInstructions.length > 0 ? `User Preferences: ${biasInstructions.join(' ')}` : ''}
     `.trim();
-  }, [currentPersona, personaBias]);
+  }, [currentPersona, relationshipMode, personaBias]);
 
   // Update bias gently
   const updateBias = useCallback((key: keyof PersonaBias, delta: number) => {
@@ -215,12 +277,16 @@ ${biasInstructions.length > 0 ? `User Preferences: ${biasInstructions.join(' ')}
     persona,
     personaBias,
     avatarStyle,
+    relationshipMode,
+    relationshipConfig,
     
     // All personas for display
     allPersonas: PERSONAS,
+    allRelationships: RELATIONSHIP_CONFIGS,
     
     // Actions
     setPersona: setCurrentPersona,
+    setRelationshipMode,
     autoSwitchPersona,
     detectPersona,
     updateBias,

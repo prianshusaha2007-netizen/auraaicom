@@ -692,22 +692,29 @@ const SubscriptionCard: React.FC<{
   );
 };
 
-// Profile Card - Clean, human sections
+// Profile Card - Clean, human sections with relationship switching
 const ProfileCard: React.FC<{ 
   onDismiss: () => void;
   onSettingsChanged?: (message: string) => void;
-}> = ({ onDismiss }) => {
+}> = ({ onDismiss, onSettingsChanged }) => {
   const { userProfile } = useAura();
+  const { relationshipMode, setRelationshipMode, relationshipConfig } = usePersonaContext();
+  const { toast } = useToast();
   
   // Relationship options
   const relationships = [
-    { id: 'friend', label: 'Best Friend', emoji: '🤝' },
-    { id: 'mentor', label: 'Mentor', emoji: '🧭' },
-    { id: 'coach', label: 'Coach', emoji: '💪' },
-    { id: 'thinker', label: 'Thinking Partner', emoji: '🧠' },
+    { id: 'friend' as const, label: 'Best Friend', emoji: '🤝' },
+    { id: 'mentor' as const, label: 'Mentor', emoji: '🧭' },
+    { id: 'coach' as const, label: 'Coach', emoji: '💪' },
+    { id: 'thinker' as const, label: 'Thinking Partner', emoji: '🧠' },
   ];
-  
-  const currentRelationship = localStorage.getItem('aurra-relationship') || 'friend';
+
+  const handleRelationshipChange = (id: 'friend' | 'mentor' | 'coach' | 'thinker') => {
+    setRelationshipMode(id);
+    const rel = relationships.find(r => r.id === id);
+    toast({ title: `Now your ${rel?.label || id}` });
+    onSettingsChanged?.(`Changed relationship to ${rel?.label}`);
+  };
 
   const formatTime = (time: string | undefined) => {
     if (!time) return '--:--';
@@ -783,29 +790,31 @@ const ProfileCard: React.FC<{
         </div>
       </div>
 
-      {/* Relationship with AURRA */}
+      {/* Relationship with AURRA - Interactive */}
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
           <Heart className="w-3 h-3" /> Relationship with AURRA
         </p>
         <div className="grid grid-cols-4 gap-1.5">
           {relationships.map((rel) => (
-            <div
+            <button
               key={rel.id}
+              onClick={() => handleRelationshipChange(rel.id)}
               className={cn(
-                'p-2 rounded-lg text-center transition-all',
-                currentRelationship === rel.id
+                'p-2 rounded-lg text-center transition-all cursor-pointer',
+                relationshipMode === rel.id
                   ? 'bg-primary/10 border-2 border-primary'
-                  : 'bg-card/50 border border-border/50'
+                  : 'bg-card/50 border border-border/50 hover:border-primary/50'
               )}
             >
               <span className="text-base">{rel.emoji}</span>
               <p className="text-[9px] mt-0.5 leading-tight">{rel.label}</p>
-            </div>
+            </button>
           ))}
         </div>
-        <p className="text-[10px] text-muted-foreground text-center">
-          You can change this anytime
+        {/* Show current mode description */}
+        <p className="text-[10px] text-muted-foreground text-center italic">
+          {relationshipConfig.tone}
         </p>
       </div>
     </div>

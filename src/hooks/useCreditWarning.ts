@@ -1,24 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCredits, CreditStatus } from './useCredits';
+import { useSoftUpsell } from './useSoftUpsell';
 
 export interface CreditWarningState {
   showSoftWarning: boolean;
   showLimitWarning: boolean;
   creditStatus: CreditStatus;
+  consecutiveLimitDays: number;
   dismissSoftWarning: () => void;
   dismissLimitWarning: () => void;
   checkAndShowWarning: () => 'soft' | 'limit' | null;
+  getSoftLimitMessage: () => string;
 }
 
 /**
  * Hook to manage soft credit warnings in chat.
  * - Shows soft warning at 80-90% usage (once per session)
  * - Shows limit warning when credits are exhausted
+ * - Tracks consecutive limit days for soft upsell
  * - Respects user dismissals
  */
 export function useCreditWarning(): CreditWarningState {
   const { getCreditStatus, credits } = useCredits();
   const creditStatus = getCreditStatus();
+  const { recordLimitHit, consecutiveLimitDays, getSoftLimitMessage } = useSoftUpsell();
   
   const [showSoftWarning, setShowSoftWarning] = useState(false);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
@@ -62,6 +67,8 @@ export function useCreditWarning(): CreditWarningState {
     if (creditStatus.isLimitReached && !limitWarningShownThisSession) {
       setShowLimitWarning(true);
       setLimitWarningShownThisSession(true);
+      // Record that user hit their limit today (for soft upsell tracking)
+      recordLimitHit();
       return 'limit';
     }
 
@@ -73,14 +80,16 @@ export function useCreditWarning(): CreditWarningState {
     }
 
     return null;
-  }, [creditStatus, softWarningShownThisSession, limitWarningShownThisSession]);
+  }, [creditStatus, softWarningShownThisSession, limitWarningShownThisSession, recordLimitHit]);
 
   return {
     showSoftWarning,
     showLimitWarning,
     creditStatus,
+    consecutiveLimitDays,
     dismissSoftWarning,
     dismissLimitWarning,
     checkAndShowWarning,
+    getSoftLimitMessage,
   };
 }
