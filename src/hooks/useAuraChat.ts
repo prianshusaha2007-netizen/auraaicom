@@ -13,6 +13,7 @@ import { useSmartRoutine, SmartRoutineBlock } from './useSmartRoutine';
 import { useMasterIntentEngine } from './useMasterIntentEngine';
 import { useChatActions } from './useChatActions';
 import { useRealtimeContext } from './useRealtimeContext';
+import { hasGreetedToday } from '@/utils/dailyGreeting';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
@@ -396,6 +397,14 @@ export const useAuraChat = () => {
               isCold: realtimeContext.isCold,
               isRaining: realtimeContext.isRaining,
               hasWeather: realtimeContext.hasWeather,
+            },
+            // Session context for greeting logic
+            sessionContext: {
+              isFirstMessageOfDay: !hasGreetedToday(),
+              messageCountToday: chatMessages.filter(m => {
+                const msgDate = new Date(m.timestamp || Date.now()).toDateString();
+                return msgDate === new Date().toDateString() && m.sender === 'user';
+              }).length,
             },
             // Master Intent for "Chat is the OS"
             intent: {

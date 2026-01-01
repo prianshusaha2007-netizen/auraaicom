@@ -548,6 +548,11 @@ function validateInput(data: any): { valid: boolean; error?: string; sanitized?:
         isRaining: userProfile.realtimeContext.isRaining === true,
         hasWeather: userProfile.realtimeContext.hasWeather === true,
       } : undefined,
+      // Session context for greeting logic
+      sessionContext: userProfile.sessionContext && typeof userProfile.sessionContext === 'object' ? {
+        isFirstMessageOfDay: userProfile.sessionContext.isFirstMessageOfDay === true,
+        messageCountToday: typeof userProfile.sessionContext.messageCountToday === 'number' ? userProfile.sessionContext.messageCountToday : 0,
+      } : undefined,
     };
   }
 
@@ -2222,6 +2227,12 @@ ${timeOfDay === 'night' || isLateNight ? `⚠️ NIGHT MODE ACTIVE (CRITICAL):
 ====================================
 ${aiName} always knows when and where the user is — without asking.
 This data influences tone, suggestions, and timing NATURALLY.
+
+SESSION CONTEXT:
+${userProfile?.sessionContext?.isFirstMessageOfDay ? `- ✨ FIRST MESSAGE OF DAY: You have NOT greeted yet today. Start with a contextual greeting (not repeated if chat history shows one).` : `- Returning user (same day): Use presence instead of greeting
+  Examples: "Ready when you are." / "Here with you." / "What's up?" / "Want to continue from earlier?"
+  NEVER repeat morning/evening greetings within the same day.`}
+- Messages today: ${userProfile?.sessionContext?.messageCountToday || 0}
 
 CURRENT CONTEXT:
 - Time: ${realtimeContext.currentTime || timeOfDay} (${dayOfWeek})
