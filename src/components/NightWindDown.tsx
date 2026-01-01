@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Moon, Calendar, Sparkles } from 'lucide-react';
+import { Moon, Calendar, Sparkles, Heart } from 'lucide-react';
+import { useSoftUpsell } from '@/hooks/useSoftUpsell';
 
 interface NightWindDownProps {
   onDismiss: () => void;
@@ -12,26 +13,20 @@ export const NightWindDown: React.FC<NightWindDownProps> = ({
   onDismiss,
   onSendMessage,
 }) => {
-  const [step, setStep] = useState<'ask' | 'response' | 'done'>('ask');
+  const [step, setStep] = useState<'ask' | 'response' | 'upsell' | 'done'>('ask');
   const [feeling, setFeeling] = useState<string>('');
+  const { triggerNightUpsell, consecutiveLimitDays, dismissNightUpsell } = useSoftUpsell();
+  const [upsellMessage, setUpsellMessage] = useState<string | null>(null);
 
-  const handleFeelingSelect = (selected: string) => {
-    setFeeling(selected);
-    setStep('response');
-    
-    // Save to local storage for tracking
-    const today = new Date().toISOString().split('T')[0];
-    const windDownHistory = JSON.parse(localStorage.getItem('aura-winddown-history') || '[]');
-    windDownHistory.push({ date: today, feeling: selected });
-    localStorage.setItem('aura-winddown-history', JSON.stringify(windDownHistory.slice(-30)));
-    localStorage.setItem('aura-winddown-date', today);
-    
-    // Auto dismiss after showing response
-    setTimeout(() => {
-      setStep('done');
-      setTimeout(onDismiss, 1500);
-    }, 2500);
-  };
+  // Check if we should show upsell after the main flow
+  useEffect(() => {
+    if (step === 'response' && consecutiveLimitDays >= 3) {
+      const msg = triggerNightUpsell();
+      if (msg) {
+        setUpsellMessage(msg);
+      }
+    }
+  }, [step, consecutiveLimitDays, triggerNightUpsell]);
 
   const handleAction = (action: 'reflect' | 'rest' | 'plan') => {
     switch (action) {
@@ -39,7 +34,16 @@ export const NightWindDown: React.FC<NightWindDownProps> = ({
         onSendMessage("I'd like to reflect on today");
         break;
       case 'rest':
-        onDismiss();
+        // Show soft response before dismissing
+        setStep('response');
+        setTimeout(() => {
+          if (upsellMessage) {
+            setStep('upsell');
+          } else {
+            setStep('done');
+            setTimeout(onDismiss, 1500);
+          }
+        }, 2000);
         break;
       case 'plan':
         onSendMessage("Help me plan tomorrow");
@@ -47,17 +51,22 @@ export const NightWindDown: React.FC<NightWindDownProps> = ({
     }
   };
 
-  const getResponseMessage = (feel: string) => {
-    switch (feel) {
-      case 'productive':
-        return "That's great to hear. Rest well tonight 🤍";
-      case 'okay':
-        return "Some days are just okay, and that's fine.\nRest well 🤍";
-      case 'tiring':
-        return "You showed up even when it was hard.\nTomorrow's a fresh start. Rest well 🤍";
-      default:
-        return "Sleep well 🤍";
+  const handleUpsellAction = (action: 'see_plans' | 'not_now') => {
+    dismissNightUpsell();
+    if (action === 'see_plans') {
+      onSendMessage("Show my subscription and credits");
+    } else {
+      setStep('done');
+      setTimeout(onDismiss, 1500);
     }
+  };
+
+  const getResponseMessage = () => {
+    const hour = new Date().getHours();
+    if (hour >= 22) {
+      return "Rest well tonight. Tomorrow's a fresh start. 🌙";
+    }
+    return "Take care. I'll be here when you need me. 🤍";
   };
 
   return (
@@ -93,8 +102,34 @@ export const NightWindDown: React.FC<NightWindDownProps> = ({
               )}
               {step === 'response' && (
                 <p className="text-foreground whitespace-pre-line">
-                  {getResponseMessage(feeling)}
+                  {getResponseMessage()}
                 </p>
+              )}
+              {step === 'upsell' && (
+                <div>
+                  <p className="text-foreground whitespace-pre-line mb-3">
+                    {upsellMessage}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs"
+                      onClick={() => handleUpsellAction('see_plans')}
+                    >
+                      <Heart className="w-3 h-3 mr-1" />
+                      See plans
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-full text-xs text-muted-foreground"
+                      onClick={() => handleUpsellAction('not_now')}
+                    >
+                      Not now
+                    </Button>
+                  </div>
+                </div>
               )}
               {step === 'done' && (
                 <p className="text-foreground flex items-center gap-2">
