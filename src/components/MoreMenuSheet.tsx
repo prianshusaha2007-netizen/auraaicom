@@ -270,11 +270,26 @@ export const MoreMenuSheet: React.FC<MoreMenuSheetProps> = ({
                           )}
                         />
                         {isNearLimit && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {isAtLimit 
-                              ? "You've reached today's limit" 
-                              : `Only ${messagesRemaining} messages remaining`}
-                          </p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <p className="text-xs text-muted-foreground">
+                              {isAtLimit 
+                                ? "You've reached today's limit" 
+                                : `Only ${messagesRemaining} messages remaining`}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-primary hover:text-primary/80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate('/subscription');
+                                onOpenChange(false);
+                              }}
+                            >
+                              Get more
+                              <ChevronRight className="w-3 h-3 ml-0.5" />
+                            </Button>
+                          </div>
                         )}
                       </div>
                     )}
