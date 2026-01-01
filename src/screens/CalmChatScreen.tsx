@@ -21,6 +21,7 @@ import { SkillSessionTimer } from '@/components/SkillSessionTimer';
 import { CreditWarning } from '@/components/CreditWarning';
 import { CreditLoadingSkeleton } from '@/components/CreditLoadingSkeleton';
 import { UpgradeSheet } from '@/components/UpgradeSheet';
+import { StatusIndicator, AuraStatus } from '@/components/StatusIndicator';
 import { useAura } from '@/contexts/AuraContext';
 import { useAuraChat } from '@/hooks/useAuraChat';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
@@ -35,6 +36,7 @@ import { useCreditWarning } from '@/hooks/useCreditWarning';
 import { useDailyFlow } from '@/hooks/useDailyFlow';
 import { useRealtimeContext } from '@/hooks/useRealtimeContext';
 import { useSettingsIntent } from '@/hooks/useSettingsIntent';
+import { useWeatherSuggestions } from '@/hooks/useWeatherSuggestions';
 import { FirstTimePreferences } from '@/components/FirstTimePreferences';
 import { NightWindDown } from '@/components/NightWindDown';
 import { MorningBriefingCard } from '@/components/MorningBriefingCard';
@@ -48,14 +50,6 @@ interface CalmChatScreenProps {
   onMenuClick?: () => void;
   onNewChat?: () => void;
 }
-
-// Status messages that rotate
-const STATUS_MESSAGES = [
-  'Here with you',
-  'Listening',
-  'Ready when you are',
-  'Taking it easy',
-];
 
 // Detect memory-worthy content
 const detectMemoryIntent = (message: string): boolean => {
@@ -152,8 +146,10 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
   // Settings intent detection
   const { detectSettingsIntent } = useSettingsIntent();
   
+  // Weather-based proactive suggestions
+  const { triggerSuggestion, shouldProactivelySuggest } = useWeatherSuggestions(realtimeContext);
+  
   const [inputValue, setInputValue] = useState('');
-  const [statusIndex, setStatusIndex] = useState(0);
   const [memoryPrompt, setMemoryPrompt] = useState<{ content: string; show: boolean }>({ content: '', show: false });
   const [showMediaSheet, setShowMediaSheet] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
@@ -171,6 +167,7 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [longPressVoiceActive, setLongPressVoiceActive] = useState(false);
   const [activeSettingsCard, setActiveSettingsCard] = useState<SettingsCardType>(null);
+  const [isListening, setIsListening] = useState(false);
   
   // Check if coding block is active
   const isCodingBlockActive = activeBlock?.block.type === 'coding';
@@ -193,14 +190,8 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const hasShownTooltipRef = useRef(localStorage.getItem('aura-voice-tooltip-shown') === 'true');
+  const weatherSuggestionShownRef = useRef(false);
 
-  // Rotate status message
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStatusIndex(prev => (prev + 1) % STATUS_MESSAGES.length);
-    }, 8000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch morning briefing when hook triggers it
   useEffect(() => {
@@ -330,6 +321,26 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
       addChatMessage({ content: greeting, sender: 'aura' });
     }
   }, [userProfile.onboardingComplete, userProfile.name, chatMessages.length, addChatMessage]);
+
+  // Weather-based proactive suggestions
+  useEffect(() => {
+    // Only trigger once per session when weather data is available
+    if (weatherSuggestionShownRef.current) return;
+    if (!realtimeContext.hasWeather || realtimeContext.isLoading) return;
+    if (chatMessages.length === 0) return; // Wait for greeting first
+    
+    // Check if we should proactively suggest based on weather
+    if (shouldProactivelySuggest()) {
+      const suggestion = triggerSuggestion();
+      if (suggestion) {
+        weatherSuggestionShownRef.current = true;
+        // Add a small delay after greeting
+        setTimeout(() => {
+          addChatMessage({ content: suggestion, sender: 'aura' });
+        }, 2000);
+      }
+    }
+  }, [realtimeContext.hasWeather, realtimeContext.isLoading, shouldProactivelySuggest, triggerSuggestion, chatMessages.length, addChatMessage]);
 
   const handleSend = async (messageOverride?: string) => {
     const messageToSend = messageOverride || inputValue.trim();
@@ -464,13 +475,14 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
     }
   };
 
-  const currentStatus = isThinking || isGenerating || isCreatingDoc 
-    ? 'Thinking...' 
+  // Derive AURRA's current status for the indicator
+  const auraStatus: AuraStatus = isThinking || isGenerating || isCreatingDoc || isUploading
+    ? 'thinking' 
     : isSpeaking 
-    ? 'Speaking...' 
-    : isUploading 
-    ? 'Analyzing...'
-    : STATUS_MESSAGES[statusIndex];
+    ? 'speaking' 
+    : isListening || showVoiceMode
+    ? 'listening'
+    : 'idle';
 
   // Header height constant for proper spacing
   const HEADER_HEIGHT = 64;
@@ -512,14 +524,8 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
                   </motion.div>
                 )}
               </div>
-              <motion.p 
-                key={currentStatus}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-xs text-muted-foreground"
-              >
-                {currentStatus}
-              </motion.p>
+              {/* Status Indicator */}
+              <StatusIndicator status={auraStatus} />
             </div>
           </div>
           
