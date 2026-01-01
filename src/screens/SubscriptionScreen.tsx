@@ -9,7 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useAura } from '@/contexts/AuraContext';
 import { UpgradeSheet } from '@/components/UpgradeSheet';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -118,7 +117,6 @@ const TIER_TO_PLAN: Record<string, string> = {
 const SubscriptionScreen: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { userProfile, addChatMessage } = useAura();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,7 +124,7 @@ const SubscriptionScreen: React.FC = () => {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
-  const aiName = userProfile.aiName || 'AURRA';
+  const aiName = 'AURRA';
 
   useEffect(() => {
     if (user) {
@@ -184,10 +182,8 @@ const SubscriptionScreen: React.FC = () => {
         .update({ is_premium: false })
         .eq('user_id', user.id);
 
-      addChatMessage({
-        content: "I'll still be here — just a little lighter. Thanks for spending time with me. 🤍",
-        sender: 'aura',
-      });
+      // Show a friendly toast instead of chat message (since we're outside AuraProvider)
+      toast.info("I'll still be here — just a little lighter. 🤍");
 
       toast.success("Your subscription has been cancelled. You'll keep your benefits until the end of the billing period.");
       fetchData();
