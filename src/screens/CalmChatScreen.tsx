@@ -437,14 +437,18 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
     ? 'Analyzing...'
     : STATUS_MESSAGES[statusIndex];
 
+  // Header height constant for proper spacing
+  const HEADER_HEIGHT = 64;
+  const INPUT_BAR_HEIGHT = 100;
+
   return (
     <div className="flex flex-col h-full bg-background relative">
       {/* Subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-      {/* Fixed Header - Simplified cockpit style */}
-      <header className="flex-shrink-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/30">
-        <div className="flex items-center justify-between px-4 py-3 pl-14">
+      {/* Fixed Header - Truly fixed, never scrolls */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/30" style={{ height: HEADER_HEIGHT }}>
+        <div className="flex items-center justify-between px-4 py-3 pl-14 h-full">
           {/* Left: Avatar */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/20 shadow-lg shadow-primary/10">
@@ -509,6 +513,9 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           </div>
         </div>
       </header>
+
+      {/* Spacer for fixed header */}
+      <div style={{ height: HEADER_HEIGHT }} className="flex-shrink-0" />
 
       {/* Focus Mode Banner - shows when in focus mode */}
       <AnimatePresence>
@@ -866,8 +873,8 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
         )}
       </AnimatePresence>
 
-      {/* Fixed Input Area */}
-      <div className="flex-shrink-0 p-4 pb-6 bg-gradient-to-t from-background via-background to-transparent border-t border-border/30">
+      {/* Fixed Input Area - Truly fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-6 bg-gradient-to-t from-background via-background to-background/80 backdrop-blur-sm border-t border-border/30" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
         <div className="max-w-2xl mx-auto">
           <div className="flex items-end gap-2">
             {/* Plus Button for Media & Tools */}
@@ -939,6 +946,9 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick }) =
           </p>
         </div>
       </div>
+
+      {/* Spacer for fixed input area */}
+      <div style={{ height: INPUT_BAR_HEIGHT }} className="flex-shrink-0" />
 
       {/* Media & Tools Bottom Sheet */}
       <MediaToolsSheet 
