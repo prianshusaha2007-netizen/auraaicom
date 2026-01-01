@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  BookOpen, Code, Briefcase, Palette, VolumeX,
-  Timer, Check, Minus, X, Music, ChevronUp
+  BookOpen, Code, Briefcase, Palette, VolumeX, Dumbbell,
+  Timer, Check, Minus, X, Music, ChevronUp, Heart, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FocusType } from '@/hooks/useFocusModeAI';
+import { FocusType, GymSubType, GymBodyArea } from '@/hooks/useFocusModeAI';
 import { FocusAmbientPicker, FocusMusicButton } from './FocusAmbientPicker';
 import { CompactFocusStats } from './FocusAnalyticsDashboard';
 import { useFocusAmbientMusic } from '@/hooks/useFocusAmbientMusic';
@@ -22,6 +22,7 @@ const focusTypes: FocusTypeOption[] = [
   { id: 'study', icon: <BookOpen className="w-5 h-5" />, label: 'Study', description: 'I\'ll help you learn' },
   { id: 'coding', icon: <Code className="w-5 h-5" />, label: 'Coding', description: 'Debug & build together' },
   { id: 'work', icon: <Briefcase className="w-5 h-5" />, label: 'Work', description: 'Clear priorities' },
+  { id: 'gym', icon: <Dumbbell className="w-5 h-5" />, label: 'Gym', description: 'Calm workout companion' },
   { id: 'creative', icon: <Palette className="w-5 h-5" />, label: 'Creative', description: 'I\'ll stay quiet' },
   { id: 'quiet', icon: <VolumeX className="w-5 h-5" />, label: 'Just focus quietly', description: 'No interruptions' },
 ];
@@ -56,16 +57,110 @@ export const FocusTypeSelection: React.FC<FocusTypeSelectionProps> = ({ onSelect
             className={cn(
               "flex items-center gap-3 p-3 rounded-xl text-left transition-all",
               "bg-muted/30 hover:bg-primary/10 hover:border-primary/30 border border-transparent",
-              type.id === 'quiet' && "col-span-2"
+              (type.id === 'quiet') && "col-span-2"
             )}
           >
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              type.id === 'gym' ? "bg-orange-500/10 text-orange-500" : "bg-primary/10 text-primary"
+            )}>
               {type.icon}
             </div>
             <div>
               <p className="font-medium text-sm">{type.label}</p>
               <p className="text-xs text-muted-foreground">{type.description}</p>
             </div>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+// Gym Sub-Type Selection (Strength/Cardio/Light)
+interface GymSubTypeSelectionProps {
+  onSelect: (subType: GymSubType) => void;
+  onBack: () => void;
+}
+
+export const GymSubTypeSelection: React.FC<GymSubTypeSelectionProps> = ({ onSelect, onBack }) => {
+  const gymOptions = [
+    { id: 'strength' as GymSubType, icon: <Dumbbell className="w-5 h-5" />, label: 'Strength', description: 'Build & lift' },
+    { id: 'cardio' as GymSubType, icon: <Zap className="w-5 h-5" />, label: 'Cardio', description: 'Get moving' },
+    { id: 'light' as GymSubType, icon: <Heart className="w-5 h-5" />, label: 'Light movement', description: 'Easy & gentle' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="bg-card/90 backdrop-blur-sm border border-orange-500/30 rounded-2xl p-4 space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Are we doing strength, cardio, or just moving today?</p>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+      
+      <div className="space-y-2">
+        {gymOptions.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all bg-muted/30 hover:bg-orange-500/10 hover:border-orange-500/30 border border-transparent"
+          >
+            <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+              {option.icon}
+            </div>
+            <div>
+              <p className="font-medium text-sm">{option.label}</p>
+              <p className="text-xs text-muted-foreground">{option.description}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+// Gym Body Area Selection (for Strength)
+interface GymBodyAreaSelectionProps {
+  onSelect: (area: GymBodyArea) => void;
+  onBack: () => void;
+}
+
+export const GymBodyAreaSelection: React.FC<GymBodyAreaSelectionProps> = ({ onSelect, onBack }) => {
+  const areaOptions = [
+    { id: 'upper' as GymBodyArea, label: 'Upper body', emoji: '💪' },
+    { id: 'lower' as GymBodyArea, label: 'Lower body', emoji: '🦵' },
+    { id: 'full' as GymBodyArea, label: 'Full body', emoji: '🏋️' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="bg-card/90 backdrop-blur-sm border border-orange-500/30 rounded-2xl p-4 space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Any area you want to focus on?</p>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+      
+      <div className="flex gap-2">
+        {areaOptions.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className="flex-1 flex flex-col items-center gap-2 p-4 rounded-xl transition-all bg-muted/30 hover:bg-orange-500/10"
+          >
+            <span className="text-2xl">{option.emoji}</span>
+            <span className="text-xs font-medium">{option.label}</span>
           </button>
         ))}
       </div>
@@ -174,6 +269,8 @@ export const FocusActiveBanner: React.FC<FocusActiveBannerProps> = ({
   const [showMusicPicker, setShowMusicPicker] = useState(false);
   const ambientMusic = useFocusAmbientMusic();
   
+  const isGym = focusType === 'gym';
+  
   const getTypeIcon = () => {
     switch (focusType) {
       case 'study': return <BookOpen className="w-4 h-4" />;
@@ -181,7 +278,36 @@ export const FocusActiveBanner: React.FC<FocusActiveBannerProps> = ({
       case 'work': return <Briefcase className="w-4 h-4" />;
       case 'creative': return <Palette className="w-4 h-4" />;
       case 'quiet': return <VolumeX className="w-4 h-4" />;
+      case 'gym': return <Dumbbell className="w-4 h-4" />;
     }
+  };
+  
+  const getBannerStyle = () => {
+    if (isGym) {
+      return "bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-500/30";
+    }
+    return "bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-500/30";
+  };
+  
+  const getTextStyle = () => {
+    if (isGym) {
+      return "text-orange-600 dark:text-orange-400";
+    }
+    return "text-violet-600 dark:text-violet-400";
+  };
+  
+  const getBadgeStyle = () => {
+    if (isGym) {
+      return "bg-orange-500/20 text-orange-600 dark:text-orange-400";
+    }
+    return "bg-violet-500/20 text-violet-600 dark:text-violet-400";
+  };
+  
+  const getIconStyle = () => {
+    if (isGym) {
+      return "bg-orange-500/20 text-orange-500";
+    }
+    return "bg-violet-500/20 text-violet-500";
   };
   
   return (
@@ -191,16 +317,18 @@ export const FocusActiveBanner: React.FC<FocusActiveBannerProps> = ({
       exit={{ opacity: 0, y: -20 }}
       className="px-4 py-2 space-y-2"
     >
-      <div className="bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-xl p-3 border border-violet-500/30">
+      <div className={cn("rounded-xl p-3 border", getBannerStyle())}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-500">
+            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", getIconStyle())}>
               {getTypeIcon()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-violet-600 dark:text-violet-400 text-sm">Focus Mode</span>
-                <span className="text-xs bg-violet-500/20 px-2 py-0.5 rounded-full text-violet-600 dark:text-violet-400">
+                <span className={cn("font-medium text-sm", getTextStyle())}>
+                  {isGym ? 'Gym Focus' : 'Focus Mode'}
+                </span>
+                <span className={cn("text-xs px-2 py-0.5 rounded-full", getBadgeStyle())}>
                   {formatTime(remainingTime)}
                 </span>
               </div>
@@ -223,6 +351,13 @@ export const FocusActiveBanner: React.FC<FocusActiveBannerProps> = ({
             </Button>
           </div>
         </div>
+        
+        {/* Gym-specific helper text */}
+        {isGym && (
+          <p className="text-xs text-muted-foreground mt-2 opacity-70">
+            I'm here if you need help. Safety first. 💪
+          </p>
+        )}
       </div>
       
       {/* Ambient Music Picker */}
@@ -239,23 +374,38 @@ export const FocusActiveBanner: React.FC<FocusActiveBannerProps> = ({
 
 interface FocusReflectionProps {
   goal: string;
+  focusType?: FocusType;
   onReflect: (result: 'yes' | 'almost' | 'not_today') => void;
 }
 
-export const FocusReflection: React.FC<FocusReflectionProps> = ({ goal, onReflect }) => {
+export const FocusReflection: React.FC<FocusReflectionProps> = ({ goal, focusType, onReflect }) => {
+  const isGym = focusType === 'gym';
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-4 space-y-4"
+      className={cn(
+        "bg-card/90 backdrop-blur-sm border rounded-2xl p-4 space-y-4",
+        isGym ? "border-orange-500/30" : "border-border/50"
+      )}
     >
       <p className="text-sm text-foreground">
-        Quick check —<br />
-        did you finish what you planned?
+        {isGym ? (
+          <>
+            Nice work. 💪<br />
+            Even showing up counts today.
+          </>
+        ) : (
+          <>
+            Quick check —<br />
+            did you finish what you planned?
+          </>
+        )}
       </p>
       
-      {goal && (
+      {goal && !isGym && (
         <p className="text-xs text-muted-foreground italic">"{goal}"</p>
       )}
       
@@ -266,7 +416,7 @@ export const FocusReflection: React.FC<FocusReflectionProps> = ({ goal, onReflec
           className="flex-1 rounded-xl gap-2"
         >
           <Check className="w-4 h-4 text-green-500" />
-          Yes
+          {isGym ? 'Great' : 'Yes'}
         </Button>
         <Button
           variant="outline"
@@ -282,9 +432,15 @@ export const FocusReflection: React.FC<FocusReflectionProps> = ({ goal, onReflec
           className="flex-1 rounded-xl gap-2"
         >
           <X className="w-4 h-4 text-muted-foreground" />
-          Not today
+          {isGym ? 'Cut short' : 'Not today'}
         </Button>
       </div>
+      
+      {isGym && (
+        <p className="text-xs text-muted-foreground text-center opacity-70">
+          Remember to hydrate and stretch 🧘
+        </p>
+      )}
     </motion.div>
   );
 };
@@ -292,16 +448,22 @@ export const FocusReflection: React.FC<FocusReflectionProps> = ({ goal, onReflec
 interface StruggleSupportProps {
   message: string;
   buttons?: string[];
+  isSafetyOverride?: boolean;
   onResponse: (response: string) => void;
 }
 
-export const StruggleSupport: React.FC<StruggleSupportProps> = ({ message, buttons, onResponse }) => {
+export const StruggleSupport: React.FC<StruggleSupportProps> = ({ message, buttons, isSafetyOverride, onResponse }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3"
+      className={cn(
+        "border rounded-2xl p-4 space-y-3",
+        isSafetyOverride 
+          ? "bg-red-500/10 border-red-500/30" 
+          : "bg-amber-500/10 border-amber-500/20"
+      )}
     >
       <p className="text-sm text-foreground whitespace-pre-line">{message}</p>
       
@@ -313,13 +475,60 @@ export const StruggleSupport: React.FC<StruggleSupportProps> = ({ message, butto
               variant="outline"
               size="sm"
               onClick={() => onResponse(btn)}
-              className="flex-1 rounded-xl text-xs"
+              className={cn(
+                "flex-1 rounded-xl text-xs",
+                isSafetyOverride && "border-red-500/30 hover:bg-red-500/10"
+              )}
             >
               {btn}
             </Button>
           ))}
         </div>
       )}
+    </motion.div>
+  );
+};
+
+// Recovery Day Banner
+interface RecoveryBannerProps {
+  onUpdateStatus: (feeling: 'better' | 'still_tired') => void;
+}
+
+export const RecoveryBanner: React.FC<RecoveryBannerProps> = ({ onUpdateStatus }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 space-y-3"
+    >
+      <div className="flex items-center gap-2">
+        <Heart className="w-5 h-5 text-blue-500" />
+        <p className="text-sm font-medium">Recovery Day</p>
+      </div>
+      
+      <p className="text-xs text-muted-foreground">
+        Today feels like a recovery day. We'll focus on movement, not intensity.
+        How's your body feeling now?
+      </p>
+      
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onUpdateStatus('better')}
+          className="flex-1 rounded-xl text-xs"
+        >
+          Better 💪
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onUpdateStatus('still_tired')}
+          className="flex-1 rounded-xl text-xs"
+        >
+          Still tired 😴
+        </Button>
+      </div>
     </motion.div>
   );
 };

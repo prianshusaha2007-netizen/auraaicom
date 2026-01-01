@@ -6,8 +6,11 @@ import {
   FocusActiveBanner,
   FocusReflection,
   StruggleSupport,
+  GymSubTypeSelection,
+  GymBodyAreaSelection,
+  RecoveryBanner,
 } from './FocusModeChat';
-import { useFocusModeAI, FocusType } from '@/hooks/useFocusModeAI';
+import { useFocusModeAI, FocusType, GymSubType, GymBodyArea } from '@/hooks/useFocusModeAI';
 import { toast } from 'sonner';
 
 interface FocusModeIntegrationProps {
@@ -21,6 +24,7 @@ export const useFocusModeIntegration = () => {
   const [pendingStruggleResponse, setPendingStruggleResponse] = useState<{
     message: string;
     buttons?: string[];
+    isSafetyOverride?: boolean;
   } | null>(null);
 
   // Detect focus intent from user message
@@ -32,11 +36,13 @@ export const useFocusModeIntegration = () => {
     
     const startPatterns = [
       /^let'?s?\s+focus/i,
-      /^start\s+(?:focus|coding|studying|working)/i,
+      /^start\s+(?:focus|coding|studying|working|workout|gym)/i,
       /^focus\s+(?:mode|time|session)/i,
-      /^(?:study|coding|work)\s+time/i,
+      /^(?:study|coding|work|gym)\s+time/i,
       /^(?:i\s+)?(?:want|need)\s+to\s+focus/i,
       /^focus\s+for\s+\d+/i,
+      /^gym\s+time/i,
+      /^start\s+workout/i,
     ];
     
     const endPatterns = [
@@ -221,9 +227,29 @@ export const FocusModeUIElements: React.FC<{
         )}
       </AnimatePresence>
 
-      {/* Goal Input */}
+      {/* Gym Sub-Type Selection */}
       <AnimatePresence>
-        {focusMode.awaitingGoal && focusMode.focusType && (
+        {focusMode.awaitingGymSubType && (
+          <GymSubTypeSelection
+            onSelect={(subType) => focusMode.selectGymSubType(subType)}
+            onBack={() => focusMode.initiateFocusMode()}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Gym Body Area Selection */}
+      <AnimatePresence>
+        {focusMode.awaitingGymBodyArea && (
+          <GymBodyAreaSelection
+            onSelect={(area) => focusMode.selectGymBodyArea(area)}
+            onBack={() => focusMode.initiateFocusMode()}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Goal Input (non-gym) */}
+      <AnimatePresence>
+        {focusMode.awaitingGoal && focusMode.focusType && focusMode.focusType !== 'gym' && (
           <FocusGoalInput
             focusType={focusMode.focusType}
             onSubmit={handleGoalSubmit}
@@ -237,8 +263,16 @@ export const FocusModeUIElements: React.FC<{
         {focusMode.sessionComplete && (
           <FocusReflection
             goal={focusMode.goal?.description || ''}
+            focusType={focusMode.focusType || undefined}
             onReflect={handleReflection}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Recovery Day Banner */}
+      <AnimatePresence>
+        {focusMode.checkRecoveryNeeded() && !focusMode.isActive && (
+          <RecoveryBanner onUpdateStatus={focusMode.updateRecoveryStatus} />
         )}
       </AnimatePresence>
 
@@ -248,6 +282,7 @@ export const FocusModeUIElements: React.FC<{
           <StruggleSupport
             message={focusMode.pendingStruggleResponse.message}
             buttons={focusMode.pendingStruggleResponse.buttons}
+            isSafetyOverride={focusMode.pendingStruggleResponse.isSafetyOverride}
             onResponse={focusMode.handleStruggleResponse}
           />
         )}
