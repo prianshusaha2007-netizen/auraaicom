@@ -23,13 +23,20 @@ const DAILY_PLAN_KEY = 'aurra-daily-plan';
 const LAST_PLAN_DATE_KEY = 'aurra-last-plan-date';
 const ROUTINE_ONBOARDING_COMPLETE_KEY = 'aurra-routine-onboarding-complete';
 
+interface DailyPlan {
+  plan: string;
+  intensity: 'light' | 'normal' | 'busy' | 'unknown';
+  keywords: string[];
+  timestamp: string;
+}
+
 function getDailyPlanContext() {
   const today = new Date().toISOString().split('T')[0];
   const hasCompletedOnboarding = localStorage.getItem(ROUTINE_ONBOARDING_COMPLETE_KEY) === 'true';
   const lastPlanDate = localStorage.getItem(LAST_PLAN_DATE_KEY);
   const hasAskedToday = lastPlanDate === today;
   
-  let currentPlan = null;
+  let currentPlan: DailyPlan | null = null;
   const savedPlan = localStorage.getItem(DAILY_PLAN_KEY);
   if (savedPlan) {
     try {
@@ -51,6 +58,88 @@ function getDailyPlanContext() {
     hasAskedToday,
     currentPlan,
   };
+}
+
+/**
+ * Detect mid-day plan intensity changes from user messages
+ */
+function detectPlanIntensityChange(message: string): { 
+  detected: boolean; 
+  newIntensity: 'light' | 'normal' | 'busy' | null;
+  responseMessage: string;
+} {
+  const lowerMessage = message.toLowerCase();
+  
+  // Busier patterns
+  if (/(?:got|getting|became|become|turned|it'?s?|today'?s?|things? (?:got|are)|now it'?s?)\s*(?:busier|hectic|crazy|intense|packed|heavy|stressful|chaotic)/i.test(lowerMessage) ||
+      /(?:more|extra|sudden|unexpected)\s*(?:work|tasks?|meetings?|stuff|things)/i.test(lowerMessage) ||
+      /(?:swamped|overwhelmed|slammed|drowning)/i.test(lowerMessage)) {
+    return { 
+      detected: true, 
+      newIntensity: 'busy',
+      responseMessage: "Got it — shifting to busy mode. I'll keep things light and simple. 💪"
+    };
+  }
+  
+  // Lighter patterns
+  if (/(?:got|getting|became|become|turned|it'?s?|today'?s?|things? (?:got|are)|now it'?s?)\s*(?:lighter|easier|calmer|relaxed|chill|quiet|slow)/i.test(lowerMessage) ||
+      /(?:cancelled|canceled|postponed|cleared|freed up)/i.test(lowerMessage) ||
+      /(?:day off|taking it easy|nothing much)/i.test(lowerMessage)) {
+    return { 
+      detected: true, 
+      newIntensity: 'light',
+      responseMessage: "Nice — going light mode. Enjoy the breather. 🍃"
+    };
+  }
+  
+  // Back to normal patterns
+  if (/(?:back to normal|getting normal|things? (?:are|got) normal|regular day now|settled down)/i.test(lowerMessage)) {
+    return { 
+      detected: true, 
+      newIntensity: 'normal',
+      responseMessage: "Cool, back to steady mode. ☕"
+    };
+  }
+  
+  return { detected: false, newIntensity: null, responseMessage: '' };
+}
+
+/**
+ * Update the daily plan intensity
+ */
+function updatePlanIntensity(newIntensity: 'light' | 'normal' | 'busy', reason?: string): DailyPlan | null {
+  const today = new Date().toISOString().split('T')[0];
+  const savedPlan = localStorage.getItem(DAILY_PLAN_KEY);
+  
+  if (savedPlan) {
+    try {
+      const parsed = JSON.parse(savedPlan);
+      if (parsed.timestamp?.startsWith(today)) {
+        const updated: DailyPlan = {
+          ...parsed,
+          intensity: newIntensity,
+          plan: reason ? `${parsed.plan} → ${reason}` : parsed.plan,
+          timestamp: new Date().toISOString(),
+        };
+        localStorage.setItem(DAILY_PLAN_KEY, JSON.stringify(updated));
+        // Trigger storage event for other components
+        window.dispatchEvent(new Event('storage'));
+        return updated;
+      }
+    } catch {}
+  }
+  
+  // Create new plan if none exists
+  const newPlan: DailyPlan = {
+    plan: reason || 'Updated mid-day',
+    intensity: newIntensity,
+    keywords: [],
+    timestamp: new Date().toISOString(),
+  };
+  localStorage.setItem(DAILY_PLAN_KEY, JSON.stringify(newPlan));
+  localStorage.setItem(LAST_PLAN_DATE_KEY, today);
+  window.dispatchEvent(new Event('storage'));
+  return newPlan;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
@@ -243,6 +332,15 @@ export const useAuraChat = () => {
       if (chatActionResult.response) {
         addChatMessage({ content: chatActionResult.response, sender: 'aura' });
       }
+      return;
+    }
+
+    // Check for mid-day plan intensity change
+    const planChange = detectPlanIntensityChange(userMessage);
+    if (planChange.detected && planChange.newIntensity) {
+      addChatMessage({ content: userMessage, sender: 'user' });
+      updatePlanIntensity(planChange.newIntensity, userMessage);
+      addChatMessage({ content: planChange.responseMessage, sender: 'aura' });
       return;
     }
 
