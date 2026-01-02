@@ -111,6 +111,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
   const [vanishTimer, setVanishTimer] = useState<number | null>(null);
   const [showVanishOptions, setShowVanishOptions] = useState(false);
   
+  // Mentor Mode detection
+  const [isMentorMode, setIsMentorMode] = useState(false);
+  
   // Credit status
   const creditStatus = getCreditStatus();
   const aiName = userProfile.aiName || 'AURRA';
@@ -199,6 +202,30 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onMenuClick, onVoiceMode
       addChatMessage({ content: greeting, sender: 'aura' });
     }
   }, [userProfile.onboardingComplete, shouldShowWelcomeBack, welcomeBackShown]);
+
+  // Mentor Mode detection - detect study/learning topics from recent messages
+  useEffect(() => {
+    const detectMentorMode = () => {
+      const recentMessages = chatMessages.slice(-5);
+      const studyPatterns = [
+        /\b(?:study|studying|learn|learning|teach|teaching|exam|test|preparation|prepare)\b/i,
+        /\b(?:explain|understand|concept|theory|topic|subject|lecture|notes)\b/i,
+        /\b(?:coding|programming|code|debug|error|bug|syntax)\b/i,
+        /\b(?:how\s+does|what\s+is|why\s+is|tell\s+me\s+about|help\s+me\s+understand)\b/i,
+        /\b(?:tutor|mentor|guide|coach)\b/i,
+        /\b(?:gym|workout|exercise|fitness|training)\b/i,
+        /\b(?:video\s*edit|design|music|skill)\b/i,
+      ];
+      
+      const hasStudyContent = recentMessages.some(msg => 
+        studyPatterns.some(pattern => pattern.test(msg.content))
+      );
+      
+      setIsMentorMode(hasStudyContent);
+    };
+    
+    detectMentorMode();
+  }, [chatMessages]);
 
   // Image generation detection
   const isImageGenRequest = (text: string): boolean => {
@@ -717,15 +744,27 @@ ${data.improvements?.length > 0 ? `**Tips:** ${data.improvements.join(', ')}` : 
               isSpeaking={isVoiceFeedbackSpeaking}
             />
             <div className="flex flex-col">
-              <span className="font-semibold text-sm">{aiName}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-sm">{aiName}</span>
+                {creditStatus.isPremium && (
+                  <Crown className="w-3 h-3 text-primary" />
+                )}
+                {isMentorMode && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"
+                  >
+                    <GraduationCap className="w-3 h-3 text-emerald-500" />
+                    <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400">Mentor Mode</span>
+                  </motion.div>
+                )}
+              </div>
               <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Calendar className="w-3 h-3" />
                 <span>Today's Chat • {format(new Date(), 'EEE, d MMM')}</span>
               </div>
             </div>
-            {creditStatus.isPremium && (
-              <Crown className="w-3 h-3 text-primary" />
-            )}
           </div>
           
           {/* Right - Actions */}
