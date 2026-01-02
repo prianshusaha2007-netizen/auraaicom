@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { hasGreetedToday, markGreetingShown } from '@/utils/dailyGreeting';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DailyFlowState {
   showPreferences: boolean;
@@ -9,6 +10,7 @@ interface DailyFlowState {
   isFirstTimeUser: boolean;
   currentDayChat: string;
   hasGreetedToday: boolean;
+  isNewDay: boolean;
 }
 
 export const useDailyFlow = () => {
@@ -20,11 +22,12 @@ export const useDailyFlow = () => {
     isFirstTimeUser: false,
     currentDayChat: '',
     hasGreetedToday: hasGreetedToday(),
+    isNewDay: false,
   });
 
   // Check daily flow conditions
   useEffect(() => {
-    const checkDailyFlow = () => {
+    const checkDailyFlow = async () => {
       const now = new Date();
       const hour = now.getHours();
       const today = now.toISOString().split('T')[0];
@@ -45,20 +48,50 @@ export const useDailyFlow = () => {
       const lastWindDown = localStorage.getItem('aura-winddown-date');
       const shouldShowWindDown = (hour >= 21 || hour < 2) && lastWindDown !== today && !isFirstTime;
       
-      // Check if we need to archive yesterday's chat
+      // DAILY CHAT MODEL: Check if this is a new day
       const lastChatDate = localStorage.getItem('aura-chat-date');
-      if (lastChatDate && lastChatDate !== today) {
-        // Archive yesterday's chat
-        const chatHistory = JSON.parse(localStorage.getItem('aura-archived-chats') || '[]');
-        const yesterdayMessages = localStorage.getItem('aura-chat-messages');
-        if (yesterdayMessages) {
-          chatHistory.push({
-            date: lastChatDate,
-            messages: JSON.parse(yesterdayMessages),
-          });
-          localStorage.setItem('aura-archived-chats', JSON.stringify(chatHistory.slice(-30)));
+      const isNewDay = lastChatDate !== today;
+      
+      if (isNewDay) {
+        // Archive previous day's chats in database
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Archive all active chats that are not today
+            await supabase
+              .from('daily_chats')
+              .update({ 
+                status: 'archived',
+                archived_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id)
+              .eq('status', 'active')
+              .neq('chat_date', today);
+
+            // Create today's chat if it doesn't exist
+            const { data: existingChat } = await supabase
+              .from('daily_chats')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('chat_date', today)
+              .maybeSingle();
+
+            if (!existingChat) {
+              await supabase
+                .from('daily_chats')
+                .insert({
+                  user_id: user.id,
+                  chat_date: today,
+                  status: 'active',
+                  message_count: 0
+                });
+            }
+          }
+        } catch (error) {
+          console.error('Error managing daily chats:', error);
         }
       }
+      
       localStorage.setItem('aura-chat-date', today);
       
       setState({
@@ -69,6 +102,7 @@ export const useDailyFlow = () => {
         isFirstTimeUser: isFirstTime,
         currentDayChat: today,
         hasGreetedToday: hasGreetedToday(),
+        isNewDay,
       });
     };
     
@@ -147,6 +181,7 @@ export const useDailyFlow = () => {
       isFirstTimeUser: false,
       currentDayChat: new Date().toISOString().split('T')[0],
       hasGreetedToday: false,
+      isNewDay: false,
     });
   }, []);
 
