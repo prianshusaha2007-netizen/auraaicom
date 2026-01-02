@@ -14,10 +14,44 @@ import { useMasterIntentEngine } from './useMasterIntentEngine';
 import { useChatActions } from './useChatActions';
 import { useRealtimeContext } from './useRealtimeContext';
 import { useUserJourney } from './useUserJourney';
-import { useAurraDailyPlan } from './useAurraDailyPlan';
 import { hasGreetedToday } from '@/utils/dailyGreeting';
 import { isRoutineEditRequest } from '@/utils/routineBehaviorRules';
 import { supabase } from '@/integrations/supabase/client';
+
+// Daily plan helper functions (inline to avoid hook nesting issues)
+const DAILY_PLAN_KEY = 'aurra-daily-plan';
+const LAST_PLAN_DATE_KEY = 'aurra-last-plan-date';
+const ROUTINE_ONBOARDING_COMPLETE_KEY = 'aurra-routine-onboarding-complete';
+
+function getDailyPlanContext() {
+  const today = new Date().toISOString().split('T')[0];
+  const hasCompletedOnboarding = localStorage.getItem(ROUTINE_ONBOARDING_COMPLETE_KEY) === 'true';
+  const lastPlanDate = localStorage.getItem(LAST_PLAN_DATE_KEY);
+  const hasAskedToday = lastPlanDate === today;
+  
+  let currentPlan = null;
+  const savedPlan = localStorage.getItem(DAILY_PLAN_KEY);
+  if (savedPlan) {
+    try {
+      const parsed = JSON.parse(savedPlan);
+      if (parsed.timestamp?.startsWith(today)) {
+        currentPlan = parsed;
+      }
+    } catch {
+      // Invalid JSON
+    }
+  }
+  
+  const isFirstMessageOfDay = !hasGreetedToday();
+  const shouldAskForPlan = hasCompletedOnboarding && isFirstMessageOfDay && !hasAskedToday;
+  
+  return {
+    hasCompletedOnboarding,
+    shouldAskForPlan,
+    hasAskedToday,
+    currentPlan,
+  };
+}
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`;
 const SUMMARIZATION_THRESHOLD = 50;
@@ -178,15 +212,6 @@ export const useAuraChat = () => {
   const { handleChatAction, showUpgradeSheet, setShowUpgradeSheet, focusState } = useChatActions();
   const { context: realtimeContext, getContextForAI } = useRealtimeContext();
   
-  // Daily plan tracking - "What's your plan for today?" logic
-  const {
-    shouldAskForPlan,
-    hasAskedToday: hasAskedForPlanToday,
-    currentPlan: todaysPlan,
-    saveDailyPlan,
-    isPlanResponse,
-    hasCompletedOnboarding: hasCompletedRoutineOnboarding,
-  } = useAurraDailyPlan();
   
   const messageCountRef = useRef(0);
 
@@ -433,17 +458,20 @@ export const useAuraChat = () => {
               }).length,
             },
             // Daily plan context - "What's your plan for today?" system
-            dailyPlanContext: {
-              hasCompletedRoutineOnboarding,
-              shouldAskForPlan,
-              hasAskedForPlanToday,
-              currentPlan: todaysPlan ? {
-                plan: todaysPlan.plan,
-                intensity: todaysPlan.intensity,
-                keywords: todaysPlan.keywords,
-              } : null,
-              isRoutineEditRequest: isRoutineEditRequest(userMessage),
-            },
+            dailyPlanContext: (() => {
+              const planCtx = getDailyPlanContext();
+              return {
+                hasCompletedRoutineOnboarding: planCtx.hasCompletedOnboarding,
+                shouldAskForPlan: planCtx.shouldAskForPlan,
+                hasAskedForPlanToday: planCtx.hasAskedToday,
+                currentPlan: planCtx.currentPlan ? {
+                  plan: planCtx.currentPlan.plan,
+                  intensity: planCtx.currentPlan.intensity,
+                  keywords: planCtx.currentPlan.keywords,
+                } : null,
+                isRoutineEditRequest: isRoutineEditRequest(userMessage),
+              };
+            })(),
             // Master Intent for "Chat is the OS"
             intent: {
               type: intent.type,
