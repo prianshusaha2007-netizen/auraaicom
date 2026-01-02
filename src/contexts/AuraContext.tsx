@@ -205,11 +205,13 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUserProfile(defaultUserProfile);
         }
 
-        // Load chat messages
+        // Load chat messages - ONLY for today (daily chat model)
+        const today = new Date().toISOString().split('T')[0];
         const { data: messages } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('user_id', user.id)
+          .eq('chat_date', today)
           .order('created_at', { ascending: true });
 
         if (messages) {
@@ -438,8 +440,9 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const timestamp = new Date();
       setChatMessages((prev) => [...prev, { ...message, id, timestamp }]);
 
-      // Save to database
+      // Save to database with today's date (daily chat model)
       if (user) {
+        const today = new Date().toISOString().split('T')[0];
         supabase
           .from('chat_messages')
           .insert({
@@ -447,6 +450,7 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             user_id: user.id,
             content: message.content,
             sender: message.sender,
+            chat_date: today,
           })
           .then(({ error }) => {
             if (error) console.error('Error saving message:', error);
@@ -486,10 +490,16 @@ export const AuraProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [user]);
 
+  // Clear only today's chat (daily chat model - preserves history)
   const clearChatHistory = useCallback(async () => {
     setChatMessages([]);
     if (user) {
-      const { error } = await supabase.from('chat_messages').delete().eq('user_id', user.id);
+      const today = new Date().toISOString().split('T')[0];
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('chat_date', today);
       if (error) console.error('Error clearing messages:', error);
     }
   }, [user]);

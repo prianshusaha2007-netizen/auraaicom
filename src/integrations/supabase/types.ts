@@ -117,6 +117,7 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          chat_date: string
           content: string
           created_at: string
           id: string
@@ -124,6 +125,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_date?: string
           content: string
           created_at?: string
           id?: string
@@ -131,6 +133,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_date?: string
           content?: string
           created_at?: string
           id?: string
@@ -249,6 +252,47 @@ export type Database = {
           title?: string
         }
         Relationships: []
+      }
+      daily_chats: {
+        Row: {
+          archived_at: string | null
+          chat_date: string
+          created_at: string
+          id: string
+          message_count: number
+          status: string
+          summary_id: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          chat_date: string
+          created_at?: string
+          id?: string
+          message_count?: number
+          status?: string
+          summary_id?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          chat_date?: string
+          created_at?: string
+          id?: string
+          message_count?: number
+          status?: string
+          summary_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_chats_summary_id_fkey"
+            columns: ["summary_id"]
+            isOneToOne: false
+            referencedRelation: "chat_summaries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_focus_blocks: {
         Row: {

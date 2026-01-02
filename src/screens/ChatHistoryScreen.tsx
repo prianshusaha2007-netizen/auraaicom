@@ -307,9 +307,14 @@ export const ChatHistoryScreen: React.FC = () => {
                           key={summary.id}
                           className={cn(
                             "bg-card rounded-xl p-4 border border-border/50",
-                            "hover:border-primary/30 transition-colors"
+                            "hover:border-primary/30 transition-colors cursor-pointer"
                           )}
                           whileHover={{ scale: 1.01 }}
+                          onClick={() => {
+                            // Navigate to archived chat view
+                            const chatDate = summary.time_range_start.split('T')[0];
+                            navigate(`/chat/${chatDate}`);
+                          }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
@@ -327,6 +332,7 @@ export const ChatHistoryScreen: React.FC = () => {
                                   <MessageCircle className="w-3 h-3" />
                                   <span>{summary.message_count} messages</span>
                                 </div>
+                                <ChevronRight className="w-4 h-4 text-primary ml-auto" />
                               </div>
                               {summary.key_topics && summary.key_topics.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-2">
@@ -345,7 +351,10 @@ export const ChatHistoryScreen: React.FC = () => {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setDeleteId(summary.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteId(summary.id);
+                              }}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
