@@ -79,6 +79,13 @@ const MENU_ITEMS = [
     color: 'from-violet-500 to-indigo-500'
   },
   { 
+    id: 'focus-history', 
+    icon: History, 
+    label: 'Focus History', 
+    action: 'focus-history',
+    color: 'from-emerald-500 to-teal-500'
+  },
+  { 
     id: 'friend-circles', 
     icon: Users, 
     label: 'Friend Circles', 
@@ -184,6 +191,8 @@ export const MoreMenuSheet: React.FC<MoreMenuSheetProps> = ({
       navigate('/subscription');
     } else if (item.action === 'focus-stats') {
       navigate('/progress');
+    } else if (item.action === 'focus-history') {
+      navigate('/focus-history');
     } else if (item.action === 'friend-circles') {
       navigate('/social');
     } else if (item.message) {

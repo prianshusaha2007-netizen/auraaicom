@@ -15,6 +15,7 @@ import { ImageGalleryScreen } from "./screens/ImageGalleryScreen";
 import { ChatHistoryScreen } from "./screens/ChatHistoryScreen";
 import { SkillsDashboardScreen } from "./screens/SkillsDashboardScreen";
 import SubscriptionScreen from "./screens/SubscriptionScreen";
+import { FocusHistoryScreen } from "./screens/FocusHistoryScreen";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/chat-history" element={<ChatHistoryScreen />} />
               <Route path="/skills" element={<SkillsDashboardScreen />} />
               <Route path="/subscription" element={<SubscriptionScreen />} />
+              <Route path="/focus-history" element={<FocusHistoryScreen />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />
