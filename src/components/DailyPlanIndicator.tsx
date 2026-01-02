@@ -61,8 +61,10 @@ export const DailyPlanIndicator: React.FC<DailyPlanIndicatorProps> = ({
   showAnimation = true,
 }) => {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
+  const [prevIntensity, setPrevIntensity] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [showAdaptAnimation, setShowAdaptAnimation] = useState(false);
+  const [showIntensityChange, setShowIntensityChange] = useState(false);
 
   useEffect(() => {
     const checkPlan = () => {
@@ -73,6 +75,12 @@ export const DailyPlanIndicator: React.FC<DailyPlanIndicatorProps> = ({
         try {
           const parsed = JSON.parse(savedPlan);
           if (parsed.timestamp?.startsWith(today)) {
+            // Detect intensity change
+            if (plan && plan.intensity !== parsed.intensity) {
+              setPrevIntensity(plan.intensity);
+              setShowIntensityChange(true);
+              setTimeout(() => setShowIntensityChange(false), 2000);
+            }
             setPlan(parsed);
             setIsVisible(true);
           } else {
@@ -93,13 +101,13 @@ export const DailyPlanIndicator: React.FC<DailyPlanIndicatorProps> = ({
     window.addEventListener('storage', handleStorage);
     
     // Check periodically
-    const interval = setInterval(checkPlan, 5000);
+    const interval = setInterval(checkPlan, 2000);
     
     return () => {
       window.removeEventListener('storage', handleStorage);
       clearInterval(interval);
     };
-  }, []);
+  }, [plan]);
 
   // Trigger adapt animation when plan changes
   useEffect(() => {
@@ -173,10 +181,12 @@ export const DailyPlanIndicator: React.FC<DailyPlanIndicatorProps> = ({
 };
 
 /**
- * Compact badge version for header
+ * Compact badge version for header with intensity change animation
  */
 export const DailyPlanBadge: React.FC<{ className?: string }> = ({ className }) => {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
+  const [showChange, setShowChange] = useState(false);
+  const prevIntensityRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     const checkPlan = () => {
@@ -187,6 +197,12 @@ export const DailyPlanBadge: React.FC<{ className?: string }> = ({ className }) 
         try {
           const parsed = JSON.parse(savedPlan);
           if (parsed.timestamp?.startsWith(today)) {
+            // Check for intensity change
+            if (prevIntensityRef.current && prevIntensityRef.current !== parsed.intensity) {
+              setShowChange(true);
+              setTimeout(() => setShowChange(false), 2000);
+            }
+            prevIntensityRef.current = parsed.intensity;
             setPlan(parsed);
           }
         } catch {}
@@ -194,8 +210,16 @@ export const DailyPlanBadge: React.FC<{ className?: string }> = ({ className }) 
     };
 
     checkPlan();
-    const interval = setInterval(checkPlan, 5000);
-    return () => clearInterval(interval);
+    
+    // Listen for storage changes
+    const handleStorage = () => checkPlan();
+    window.addEventListener('storage', handleStorage);
+    
+    const interval = setInterval(checkPlan, 2000);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
   }, []);
 
   if (!plan) return null;
@@ -204,16 +228,34 @@ export const DailyPlanBadge: React.FC<{ className?: string }> = ({ className }) 
 
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
+      key={plan.intensity}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ 
+        scale: showChange ? [1, 1.3, 1] : 1, 
+        opacity: 1,
+        rotate: showChange ? [0, 10, -10, 0] : 0,
+      }}
+      transition={{ duration: showChange ? 0.5 : 0.2 }}
       className={cn(
-        'flex items-center justify-center w-6 h-6 rounded-full',
+        'relative flex items-center justify-center w-6 h-6 rounded-full transition-colors',
         config.bgColor,
         className
       )}
       title={`${config.label}: ${plan.plan}`}
     >
-      <span className="text-xs">{config.emoji}</span>
+      {/* Pulse ring on change */}
+      <AnimatePresence>
+        {showChange && (
+          <motion.div
+            initial={{ scale: 1, opacity: 0.8 }}
+            animate={{ scale: 2, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+            className={cn('absolute inset-0 rounded-full', config.bgColor)}
+          />
+        )}
+      </AnimatePresence>
+      <span className="text-xs relative z-10">{config.emoji}</span>
     </motion.div>
   );
 };
