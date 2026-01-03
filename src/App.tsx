@@ -15,6 +15,7 @@ import { ImageGalleryScreen } from "./screens/ImageGalleryScreen";
 import { ChatHistoryScreen } from "./screens/ChatHistoryScreen";
 import { ArchivedChatScreen } from "./screens/ArchivedChatScreen";
 import { SkillsDashboardScreen } from "./screens/SkillsDashboardScreen";
+import { AuraProvider } from "./contexts/AuraContext";
 import SubscriptionScreen from "./screens/SubscriptionScreen";
 import { FocusHistoryScreen } from "./screens/FocusHistoryScreen";
 
@@ -35,7 +36,7 @@ const App = () => (
               <Route path="/gallery" element={<ImageGalleryScreen />} />
               <Route path="/chat-history" element={<ChatHistoryScreen />} />
               <Route path="/chat/:date" element={<ArchivedChatScreen />} />
-              <Route path="/skills" element={<SkillsDashboardScreen />} />
+              <Route path="/skills" element={<AuraProvider><SkillsDashboardScreen /></AuraProvider>} />
               <Route path="/subscription" element={<SubscriptionScreen />} />
               <Route path="/focus-history" element={<FocusHistoryScreen />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
