@@ -60,10 +60,10 @@ serve(async (req) => {
       );
     }
 
-    const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
-    if (!RAZORPAY_KEY_SECRET) {
-      logWebhookEvent('CONFIG_ERROR', { requestId, error: 'Razorpay secret not configured' });
-      throw new Error('Razorpay secret not configured');
+    const RAZORPAY_WEBHOOK_SECRET = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
+    if (!RAZORPAY_WEBHOOK_SECRET) {
+      logWebhookEvent('CONFIG_ERROR', { requestId, error: 'Razorpay webhook secret not configured' });
+      throw new Error('Razorpay webhook secret not configured');
     }
 
     // Get the webhook signature
@@ -86,7 +86,7 @@ serve(async (req) => {
       );
     }
 
-    const expectedSignature = await generateHmac(body, RAZORPAY_KEY_SECRET);
+    const expectedSignature = await generateHmac(body, RAZORPAY_WEBHOOK_SECRET);
     const signatureValid = expectedSignature === signature;
 
     if (!signatureValid) {
