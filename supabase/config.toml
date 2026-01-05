@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.elevenlabs-scribe-token]
 verify_jwt = true
+
+[functions.reset-daily-credits]
+verify_jwt = false

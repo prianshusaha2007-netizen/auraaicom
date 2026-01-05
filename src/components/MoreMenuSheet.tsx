@@ -146,6 +146,13 @@ const MENU_ITEMS = [
     color: 'from-purple-500 to-pink-500'
   },
   { 
+    id: 'my-plan', 
+    icon: Shield, 
+    label: 'My Plan', 
+    action: 'my-plan',
+    color: 'from-emerald-500 to-teal-500'
+  },
+  { 
     id: 'profile', 
     icon: User, 
     label: 'Profile & Personal Details', 
@@ -208,6 +215,8 @@ export const MoreMenuSheet: React.FC<MoreMenuSheetProps> = ({
       onNewChat();
     } else if (item.action === 'subscription') {
       navigate('/subscription');
+    } else if (item.action === 'my-plan') {
+      navigate('/my-plan');
     } else if (item.action === 'focus-stats') {
       navigate('/progress');
     } else if (item.action === 'focus-history') {

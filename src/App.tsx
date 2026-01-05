@@ -18,6 +18,7 @@ import { ChatHistoryScreen } from "./screens/ChatHistoryScreen";
 import { ArchivedChatScreen } from "./screens/ArchivedChatScreen";
 import { SkillsDashboardScreen } from "./screens/SkillsDashboardScreen";
 import SubscriptionScreen from "./screens/SubscriptionScreen";
+import SubscriptionManagementScreen from "./screens/SubscriptionManagementScreen";
 import { FocusHistoryScreen } from "./screens/FocusHistoryScreen";
 import { WellnessScreen } from "./screens/WellnessScreen";
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/chat/:date" element={<ProtectedRoute><ArchivedChatScreen /></ProtectedRoute>} />
               <Route path="/skills" element={<ProtectedRoute><SkillsDashboardScreen /></ProtectedRoute>} />
               <Route path="/subscription" element={<ProtectedRoute><SubscriptionScreen /></ProtectedRoute>} />
+              <Route path="/my-plan" element={<ProtectedRoute><SubscriptionManagementScreen /></ProtectedRoute>} />
               <Route path="/focus-history" element={<ProtectedRoute><FocusHistoryScreen /></ProtectedRoute>} />
               <Route path="/wellness" element={<ProtectedRoute><WellnessScreen /></ProtectedRoute>} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
