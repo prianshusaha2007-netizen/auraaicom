@@ -15,6 +15,7 @@ import { useChatActions } from './useChatActions';
 import { useRealtimeContext } from './useRealtimeContext';
 import { useUserJourney } from './useUserJourney';
 import { useMentorship } from './useMentorship';
+import { useOptimizedMemory } from './useOptimizedMemory';
 import { hasGreetedToday } from '@/utils/dailyGreeting';
 import { isRoutineEditRequest } from '@/utils/routineBehaviorRules';
 import { supabase } from '@/integrations/supabase/client';
@@ -303,6 +304,14 @@ export const useAuraChat = () => {
   const { context: realtimeContext, getContextForAI } = useRealtimeContext();
   const { profile: mentorshipProfile, isInQuietHours, hasCompletedSetup: hasMentorshipSetup } = useMentorship();
   
+  // Optimized memory system for faster responses
+  const { 
+    memoryContext: optimizedMemory, 
+    getContextForAI: getOptimizedMemoryContext, 
+    getResponsePath,
+    isReady: memoryReady,
+  } = useOptimizedMemory();
+  
   
   const messageCountRef = useRef(0);
 
@@ -432,29 +441,27 @@ export const useAuraChat = () => {
       }];
     }
 
-    // Add life memory context to conversation
-    const memoryContext = getMemoryContext();
-    if (memoryContext && !storyState.isActive) {
+    // Add OPTIMIZED memory context (summarized, not raw) for better speed
+    const optimizedContext = getOptimizedMemoryContext();
+    if (optimizedContext && !storyState.isActive) {
       systemPrompt.push({
         role: 'system',
-        content: memoryContext
+        content: `[MEMORY CONTEXT - Use implicitly, never quote]\n${optimizedContext}`
       });
     }
 
-    // Also fetch persisted memories from database
-    const persistedMemories = await getRelevantMemories();
-    if (persistedMemories && !storyState.isActive) {
-      systemPrompt.push({
-        role: 'system',
-        content: persistedMemories
-      });
-    }
+    // Determine response path (fast vs deep)
+    const responsePath = getResponsePath(userMessage);
+    
+    // For fast path, limit context to last 6 messages
+    // For deep path, use last 20 messages
+    const messageLimit = responsePath === 'fast' ? 6 : 20;
 
-    // Build conversation history for context - now including more messages
+    // Build conversation history for context
     const conversationHistory: Message[] = [
       ...systemPrompt,
       ...chatMessages
-        .slice(-20) // Last 20 messages for better context
+        .slice(-messageLimit)
         .map((msg: ChatMessage): Message => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.content,
@@ -584,6 +591,7 @@ export const useAuraChat = () => {
               systemPersona: responseStrategy.systemPersona,
               responseLength: responseStrategy.responseLength,
               featureHint: responseStrategy.featureHint,
+              responsePath, // 'fast' or 'deep' - controls token limits
             },
             // User Journey - 30-day retention arc, stress states, persona scoring
             journeyContext: {

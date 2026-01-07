@@ -540,6 +540,7 @@ function validateInput(data: any): { valid: boolean; error?: string; sanitized?:
         systemPersona: typeof userProfile.responseStrategy.systemPersona === 'string' ? userProfile.responseStrategy.systemPersona.slice(0, 20) : 'companion',
         responseLength: typeof userProfile.responseStrategy.responseLength === 'string' ? userProfile.responseStrategy.responseLength.slice(0, 10) : 'medium',
         featureHint: typeof userProfile.responseStrategy.featureHint === 'string' ? userProfile.responseStrategy.featureHint.slice(0, 30) : '',
+        responsePath: typeof userProfile.responseStrategy.responsePath === 'string' ? userProfile.responseStrategy.responsePath.slice(0, 10) : 'fast',
       } : undefined,
       // Real-time context (location, weather, live awareness)
       realtimeContext: userProfile.realtimeContext && typeof userProfile.realtimeContext === 'object' ? {
@@ -3044,6 +3045,10 @@ Sometimes that's clarity. Sometimes it's silence. Sometimes it's direction.
 
 Be a calm presence. Reduce mental load. Be AURRA. 💫`;
 
+    // Determine max tokens based on response path (fast = 300, deep = 1000)
+    const responsePath = responseStrategy?.responsePath || 'fast';
+    const maxTokens = responsePath === 'deep' ? 1000 : 300;
+    
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -3057,6 +3062,7 @@ Be a calm presence. Reduce mental load. Be AURRA. 💫`;
           ...messages,
         ],
         stream: true,
+        max_tokens: maxTokens,
       }),
     });
 

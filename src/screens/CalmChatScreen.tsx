@@ -551,48 +551,48 @@ export const CalmChatScreen: React.FC<CalmChatScreenProps> = ({ onMenuClick, onN
       {/* Fixed Header - Truly fixed, never scrolls */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/30" style={{ height: HEADER_HEIGHT }}>
         <div className="flex items-center justify-between px-4 py-3 pl-14 h-full">
-          {/* Left: Avatar */}
+          {/* Left: Avatar + Name + Status */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/20 shadow-lg shadow-primary/10">
               <img src={auraAvatar} alt="AURRA" className="w-full h-full object-cover" />
             </div>
-            {/* Center: Name & Status */}
-            <div>
+            {/* Name, Status & Live Clock */}
+            <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h1 className="font-semibold text-foreground">AURRA</h1>
-                {/* Time of day icon */}
-                <span className="text-sm">
-                  {realtimeContext.timeOfDay === 'morning' && '🌅'}
-                  {realtimeContext.timeOfDay === 'afternoon' && '☀️'}
-                  {realtimeContext.timeOfDay === 'evening' && '🌆'}
-                  {realtimeContext.timeOfDay === 'night' && '🌙'}
-                </span>
-                {/* Weather & Temperature indicator */}
+                <StatusIndicator status={auraStatus} />
+              </div>
+              {/* Live Clock with City & Weather */}
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="font-medium">{realtimeContext.currentTime || '--:--'}</span>
+                {realtimeContext.city && (
+                  <>
+                    <span className="opacity-50">•</span>
+                    <span className="truncate max-w-[80px]">{realtimeContext.city}</span>
+                  </>
+                )}
                 {realtimeContext.hasWeather && realtimeContext.temperature !== null && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/50 text-[10px] text-muted-foreground"
-                  >
+                  <>
+                    <span className="opacity-50">•</span>
                     <span>{realtimeContext.weatherEmoji || '🌤️'}</span>
                     <span>{Math.round(realtimeContext.temperature)}°</span>
-                  </motion.div>
+                  </>
                 )}
-                {/* Journey status badge */}
-                <CompactJourneyBadge 
-                  daysSinceFirstUse={daysSinceFirstUse}
-                  stressState={stressState}
-                />
-                {/* Daily plan intensity badge */}
-                <DailyPlanBadge />
               </div>
-              {/* Status Indicator */}
-              <StatusIndicator status={auraStatus} />
             </div>
           </div>
           
-          {/* Right: Subscription, Voice & More buttons */}
+          {/* Right: Badges + Actions */}
           <div className="flex items-center gap-1">
+            {/* Compact badges row */}
+            <div className="hidden sm:flex items-center gap-1 mr-1">
+              <CompactJourneyBadge 
+                daysSinceFirstUse={daysSinceFirstUse}
+                stressState={stressState}
+              />
+              <DailyPlanBadge />
+            </div>
+            
             {/* Subscription Quick Access - shows plan badge for free users */}
             {!creditStatus.isPremium && !creditStatus.isLoading && (
               <Button
