@@ -175,6 +175,71 @@ serve(async (req) => {
       console.error('Error updating credits:', creditsError);
     }
 
+    // Handle referral commission if this user was referred
+    const commissionRates: Record<string, number> = {
+      basic: 990,   // ₹9.90 in paise
+      plus: 1990,   // ₹19.90 in paise
+      pro: 2990,    // ₹29.90 in paise
+    };
+    const creditsPerReferral = 5;
+    const holdDays = 7;
+
+    const { data: referralData } = await supabase
+      .from('referrals')
+      .select('id, referrer_id')
+      .eq('referred_user_id', authenticatedUserId)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (referralData) {
+      const commission = commissionRates[tier] || 0;
+      const holdUntil = new Date();
+      holdUntil.setDate(holdUntil.getDate() + holdDays);
+
+      // Update referral to confirmed
+      await supabase
+        .from('referrals')
+        .update({
+          plan_type: tier,
+          commission_amount: commission,
+          status: 'confirmed',
+          hold_until: holdUntil.toISOString(),
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('id', referralData.id);
+
+      // Update referrer's wallet
+      const { data: walletData } = await supabase
+        .from('referral_wallets')
+        .select('*')
+        .eq('user_id', referralData.referrer_id)
+        .maybeSingle();
+
+      if (walletData) {
+        await supabase
+          .from('referral_wallets')
+          .update({
+            cash_balance: (walletData.cash_balance || 0) + commission,
+            credit_balance: (walletData.credit_balance || 0) + creditsPerReferral,
+            successful_referrals: (walletData.successful_referrals || 0) + 1,
+          })
+          .eq('user_id', referralData.referrer_id);
+      } else {
+        // Create wallet if it doesn't exist
+        await supabase
+          .from('referral_wallets')
+          .insert({
+            user_id: referralData.referrer_id,
+            cash_balance: commission,
+            credit_balance: creditsPerReferral,
+            successful_referrals: 1,
+            total_referrals: 1,
+          });
+      }
+
+      console.log('Referral commission processed:', { referrerId: referralData.referrer_id, commission });
+    }
+
     // Insert system chat message to confirm upgrade in chat (single source of truth)
     const tierNames: Record<string, string> = { basic: 'Basic', plus: 'Plus', pro: 'Pro' };
     const tierName = tierNames[tier] || 'Plus';

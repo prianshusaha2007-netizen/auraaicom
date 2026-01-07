@@ -22,6 +22,7 @@ import SubscriptionManagementScreen from "./screens/SubscriptionManagementScreen
 import { FocusHistoryScreen } from "./screens/FocusHistoryScreen";
 import { WellnessScreen } from "./screens/WellnessScreen";
 import { MentorshipSettingsScreen } from "./screens/MentorshipSettingsScreen";
+import { ReferralsScreen } from "./screens/ReferralsScreen";
 const queryClient = new QueryClient();
 
 // Wrapper for routes that need AuraProvider
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/focus-history" element={<ProtectedRoute><FocusHistoryScreen /></ProtectedRoute>} />
               <Route path="/wellness" element={<ProtectedRoute><WellnessScreen /></ProtectedRoute>} />
               <Route path="/mentorship" element={<ProtectedRoute><MentorshipSettingsScreen /></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute><ReferralsScreen /></ProtectedRoute>} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />
