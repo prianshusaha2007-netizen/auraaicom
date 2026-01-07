@@ -19,7 +19,8 @@ import {
   Timer,
   Users,
   Heart,
-  GraduationCap
+  GraduationCap,
+  Gift
 } from 'lucide-react';
 import {
   Drawer,
@@ -161,6 +162,13 @@ const MENU_ITEMS = [
     color: 'from-emerald-500 to-teal-500'
   },
   { 
+    id: 'referrals', 
+    icon: Gift, 
+    label: 'Referrals & Earnings', 
+    action: 'referrals',
+    color: 'from-amber-500 to-yellow-500'
+  },
+  { 
     id: 'profile', 
     icon: User, 
     label: 'Profile & Personal Details', 
@@ -235,6 +243,8 @@ export const MoreMenuSheet: React.FC<MoreMenuSheetProps> = ({
       navigate('/wellness');
     } else if (item.action === 'mentorship') {
       navigate('/mentorship');
+    } else if (item.action === 'referrals') {
+      navigate('/referrals');
     } else if (item.action === 'rhythm-editor') {
       onOpenChange(false);
       // Small delay to let the drawer close first

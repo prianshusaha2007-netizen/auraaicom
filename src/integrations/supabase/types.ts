@@ -824,6 +824,105 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          user_id: string
+          uses_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+          uses_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+          uses_count?: number
+        }
+        Relationships: []
+      }
+      referral_wallets: {
+        Row: {
+          cash_balance: number
+          created_at: string
+          credit_balance: number
+          id: string
+          successful_referrals: number
+          total_referrals: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cash_balance?: number
+          created_at?: string
+          credit_balance?: number
+          id?: string
+          successful_referrals?: number
+          total_referrals?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cash_balance?: number
+          created_at?: string
+          credit_balance?: number
+          id?: string
+          successful_referrals?: number
+          total_referrals?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          commission_amount: number | null
+          confirmed_at: string | null
+          created_at: string
+          hold_until: string | null
+          id: string
+          plan_type: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          commission_amount?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          hold_until?: string | null
+          id?: string
+          plan_type?: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          commission_amount?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          hold_until?: string | null
+          id?: string
+          plan_type?: string | null
+          referral_code?: string
+          referred_user_id?: string
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       reminders: {
         Row: {
           active: boolean | null
@@ -1120,12 +1219,46 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawals: {
+        Row: {
+          amount: number
+          bank_details: Json | null
+          created_at: string
+          id: string
+          processed_at: string | null
+          status: string
+          upi_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_details?: Json | null
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          upi_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_details?: Json | null
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          upi_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       generate_friend_code: { Args: never; Returns: string }
+      generate_referral_code: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
