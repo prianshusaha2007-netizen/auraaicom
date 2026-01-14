@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.lovable.d5612d77366d4faf9366ed086292bbf1',
-  appName: 'auraaicom',
+  appName: 'AURRA - Life OS',
   webDir: 'dist',
   server: {
     url: 'https://d5612d77-366d-4faf-9366-ed086292bbf1.lovableproject.com?forceHideBadge=true',
@@ -29,7 +29,25 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'dark',
       backgroundColor: '#0a0a0a'
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'dark'
     }
+  },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true,
+    backgroundColor: '#0a0a0a',
+    // Custom permissions for accessibility service
+    // These need to be added to AndroidManifest.xml manually
+  },
+  ios: {
+    backgroundColor: '#0a0a0a',
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile',
+    scheme: 'aurra'
   }
 };
 
