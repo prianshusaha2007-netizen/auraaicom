@@ -186,9 +186,10 @@ export const useAlarmSystem = () => {
         user_id: user.id,
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await supabase
         .from('alarms')
-        .insert(insertData)
+        .insert(insertData as any)
         .select()
         .single();
 
@@ -217,15 +218,18 @@ export const useAlarmSystem = () => {
     if (!user?.id) return false;
 
     try {
-      const updateData = {
-        ...updates,
-        actions: updates.actions ? (updates.actions as unknown as Record<string, unknown>[]) : undefined,
-        conditions: updates.conditions ? (updates.conditions as unknown as Record<string, unknown>) : undefined,
-      };
+      const updateData: Record<string, unknown> = { ...updates };
+      if (updates.actions) {
+        updateData.actions = JSON.parse(JSON.stringify(updates.actions));
+      }
+      if (updates.conditions) {
+        updateData.conditions = JSON.parse(JSON.stringify(updates.conditions));
+      }
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from('alarms')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', alarmId)
         .eq('user_id', user.id);
 
@@ -363,8 +367,8 @@ export const useAlarmSystem = () => {
       user_id: user.id,
       execution_mode: adaptiveMode,
       status: 'executing',
-      context_snapshot: userContext as unknown as Record<string, unknown>,
-    });
+      context_snapshot: JSON.parse(JSON.stringify(userContext)),
+    } as never);
 
     const startTime = Date.now();
     const actionsPerformed: AlarmAction[] = [];
@@ -384,10 +388,10 @@ export const useAlarmSystem = () => {
       user_id: user.id,
       execution_mode: adaptiveMode,
       status: 'completed',
-      actions_performed: actionsPerformed as unknown as Record<string, unknown>[],
-      context_snapshot: userContext as unknown as Record<string, unknown>,
+      actions_performed: JSON.parse(JSON.stringify(actionsPerformed)),
+      context_snapshot: JSON.parse(JSON.stringify(userContext)),
       duration_ms: Date.now() - startTime,
-    });
+    } as never);
 
     // Update alarm last triggered
     await updateAlarm(alarm.id, {
