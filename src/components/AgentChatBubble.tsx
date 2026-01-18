@@ -15,6 +15,7 @@ interface AgentChatBubbleProps {
   stats?: { label: string; value: string | number }[];
   mode?: AutonomyMode;
   timestamp: Date;
+  isStreaming?: boolean;
   onAction?: (action: string, data?: any) => void;
 }
 
@@ -47,6 +48,7 @@ const AgentChatBubble: React.FC<AgentChatBubbleProps> = ({
   stats,
   mode,
   timestamp,
+  isStreaming,
   onAction,
 }) => {
   const colorClass = domain ? domainColors[domain] : 'from-muted to-muted/50 border-border';
@@ -84,7 +86,12 @@ const AgentChatBubble: React.FC<AgentChatBubbleProps> = ({
 
         {/* Message Content */}
         <div className="px-3 py-2">
-          <p className="text-sm leading-relaxed">{content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {content}
+            {isStreaming && (
+              <span className="inline-block w-2 h-4 ml-0.5 bg-primary/70 animate-pulse rounded-sm" />
+            )}
+          </p>
         </div>
 
         {/* Stats Row */}

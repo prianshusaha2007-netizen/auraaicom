@@ -216,6 +216,7 @@ const AgentChatInterface: React.FC<AgentChatInterfaceProps> = ({
                     stats={message.stats}
                     mode={message.mode}
                     timestamp={message.timestamp}
+                    isStreaming={message.isStreaming}
                     onAction={handleQuickAction}
                   />
                 )}

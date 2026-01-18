@@ -6,6 +6,7 @@ import { AGENT_REGISTRY, getAgentById } from '@/agents/registry';
 import { AgentContext, AgentResponse, AutonomyMode, AgentDomain } from '@/agents/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { toast } from 'sonner';
 
 interface AgentMessage {
   id: string;
@@ -18,6 +19,7 @@ interface AgentMessage {
   stats?: { label: string; value: string | number }[];
   timestamp: Date;
   mode?: AutonomyMode;
+  isStreaming?: boolean;
 }
 
 interface UseAgentSystemReturn {
@@ -35,6 +37,40 @@ interface UseAgentSystemReturn {
   clearMessages: () => void;
 }
 
+// Build agent context for AI
+const buildAgentContextPrompt = (
+  agents: AgentResponse[],
+  mode: AutonomyMode,
+  context: AgentContext
+): string => {
+  const agentInfo = agents.map(a => `${a.agentName} (${a.domain}): ${a.message}`).join('\n');
+  const modeDesc = {
+    do_as_told: 'Execute only what user explicitly asks',
+    suggest_approve: 'Suggest options and wait for approval',
+    predict_confirm: 'Predict needs and ask for confirmation',
+    full_auto: 'Execute within set boundaries automatically',
+    adaptive: 'Switch modes based on context intelligently',
+  }[mode];
+  
+  return `
+ACTIVE AGENTS:
+${agentInfo || 'No specific agents activated'}
+
+AUTONOMY MODE: ${mode} - ${modeDesc}
+
+USER CONTEXT:
+- Mood: ${context.mood}
+- Energy: ${context.energy}
+- Time: ${context.timeOfDay}
+- Stress: ${context.stress}
+- Burnout Score: ${context.burnoutScore}/100
+- Focus Session Active: ${context.activeFocusSession}
+- Work Hours: ${context.isWorkHours}
+
+Respond as AURRA with the activated agent personalities. Keep responses conversational but action-oriented.
+`;
+};
+
 export const useAgentSystem = (): UseAgentSystemReturn => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -46,6 +82,97 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
   useEffect(() => {
     orchestrator.setGlobalMode(currentMode);
   }, [currentMode]);
+
+  // Stream AI response with SSE
+  const streamAIResponse = useCallback(async (
+    userMessage: string,
+    agentResponses: AgentResponse[],
+    onUpdate: (content: string) => void
+  ): Promise<string> => {
+    const agentContextPrompt = buildAgentContextPrompt(agentResponses, currentMode, context);
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aura-chat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          agentContext: agentContextPrompt,
+          mode: currentMode,
+          context: {
+            mood: context.mood,
+            energy: context.energy,
+            timeOfDay: context.timeOfDay,
+            agents: agentResponses.map(r => r.agentId),
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        toast.error('Rate limit exceeded. Please try again in a moment.');
+        throw new Error('Rate limited');
+      }
+      if (response.status === 402) {
+        toast.error('AI credits exhausted. Please add credits to continue.');
+        throw new Error('Payment required');
+      }
+      throw new Error('AI request failed');
+    }
+
+    // Handle streaming response
+    if (response.headers.get('content-type')?.includes('text/event-stream')) {
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullContent += content;
+              onUpdate(fullContent);
+            }
+          } catch {
+            buffer = line + '\n' + buffer;
+            break;
+          }
+        }
+      }
+      
+      return fullContent;
+    }
+    
+    // Non-streaming fallback
+    const data = await response.json();
+    return data.response || data.message || 'I processed your request.';
+  }, [currentMode, context]);
 
   // Send a message to the agent system
   const sendMessage = useCallback(async (message: string) => {
@@ -63,28 +190,58 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
     setIsProcessing(true);
     
     try {
-      // Route message through orchestrator
+      // Route message through orchestrator to identify relevant agents
       const responses = await orchestrator.routeMessage(message);
       
-      // Convert responses to messages
-      const agentMessages: AgentMessage[] = responses.map((response, index) => ({
-        id: `agent-${Date.now()}-${index}`,
-        type: 'agent' as const,
-        content: response.message,
-        agentId: response.agentId,
-        agentName: response.agentName,
-        domain: response.domain,
-        actions: response.actions,
-        stats: response.stats,
-        timestamp: new Date(response.timestamp),
-        mode: orchestrator.determineMode(response.domain),
-      }));
+      // Determine primary agent for the response
+      const primaryAgent = responses[0];
+      const agentInfo = primaryAgent ? getAgentById(primaryAgent.agentId) : null;
       
-      setMessages(prev => [...prev, ...agentMessages]);
+      // Create streaming message placeholder
+      const streamingMsgId = `agent-${Date.now()}`;
+      const streamingMessage: AgentMessage = {
+        id: streamingMsgId,
+        type: 'agent',
+        content: '',
+        agentId: primaryAgent?.agentId || 'aurra',
+        agentName: primaryAgent?.agentName || 'AURRA',
+        domain: primaryAgent?.domain || 'routine',
+        actions: primaryAgent?.actions,
+        stats: primaryAgent?.stats,
+        timestamp: new Date(),
+        mode: orchestrator.determineMode(primaryAgent?.domain || 'routine'),
+        isStreaming: true,
+      };
       
-      // Try to get AI-enhanced response if user is authenticated
+      setMessages(prev => [...prev, streamingMessage]);
+      
+      // Stream AI response if user is authenticated
       if (user) {
-        await enhanceWithAI(message, responses);
+        const finalContent = await streamAIResponse(
+          message,
+          responses,
+          (content) => {
+            setMessages(prev => prev.map(m => 
+              m.id === streamingMsgId 
+                ? { ...m, content, isStreaming: true }
+                : m
+            ));
+          }
+        );
+        
+        // Finalize the message
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgId 
+            ? { ...m, content: finalContent, isStreaming: false }
+            : m
+        ));
+      } else {
+        // Fallback to orchestrator response for unauthenticated users
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgId 
+            ? { ...m, content: primaryAgent?.message || 'Please log in for full AI-powered responses.', isStreaming: false }
+            : m
+        ));
       }
     } catch (error) {
       console.error('Agent system error:', error);
@@ -102,30 +259,7 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
     } finally {
       setIsProcessing(false);
     }
-  }, [user]);
-
-  // Enhance responses with AI
-  const enhanceWithAI = async (userMessage: string, initialResponses: AgentResponse[]) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('aura-chat', {
-        body: {
-          message: userMessage,
-          context: {
-            agents: initialResponses.map(r => r.agentId),
-            mode: currentMode,
-            userContext: context,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      // Could update the last agent message with AI-enhanced content
-      // For now, we'll use the orchestrator responses
-    } catch (error) {
-      console.error('AI enhancement failed:', error);
-    }
-  };
+  }, [user, streamAIResponse]);
 
   // Execute an action suggested by an agent
   const executeAction = useCallback(async (action: string, data?: any) => {
